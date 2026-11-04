@@ -6,15 +6,23 @@ provider or a privileged database operation directly.
 
 ## Status
 
-| Endpoint | Contract | State |
-|---|---|---|
-| `GET /api/v1/languages` | §2.1 | **Implemented** |
-| `GET /api/v1/users/me` | §2.2 | Schema ready, handler not written |
-| `POST /api/v1/ai/chat` | §2.3 | Schema ready, needs provider |
-| `POST /api/v1/translate` | §2.4 | Needs provider |
-| `GET /api/v1/dictionary/search` | §2.5 | Schema ready, handler not written |
-| `GET /api/v1/courses`, `GET /api/v1/lessons/:id` | §2.6 | Schema ready, handler not written |
-| `POST /api/v1/progress` | §2.6 | Schema ready, handler not written |
+| Endpoint | Contract | Auth | State |
+|---|---|---|---|
+| `GET /api/v1/languages` | §2.1 | public | **Implemented** |
+| `GET /api/v1/users/me` | §2.2 | **required** | **Implemented** |
+| `POST /api/v1/ai/chat` | §2.3 | **required** + rate limited | **Implemented** |
+| `POST /api/v1/translate` | §2.4 | **required** + rate limited | **Implemented** |
+| `GET /api/v1/dictionary/search` | §2.5 | public | **Implemented** |
+| `GET /api/v1/courses`, `GET /api/v1/lessons/:id` | §2.6 | — | Schema ready, handler not written |
+| `POST /api/v1/progress` | §2.6 | — | Schema ready, handler not written |
+
+"Required" means the endpoint calls `protect()` from `_lib/auth/guard.ts` and
+answers `401` without a valid bearer token. Both paid endpoints also consult
+`_lib/rate-limit.ts` before spending a provider credit.
+
+If `SUPABASE_JWT_SECRET` is absent, the three protected endpoints answer `503`
+rather than running unprotected — an endpoint that cannot identify a caller must
+not spend money on their behalf.
 
 The contract these must satisfy is `docs/api/api-contract.md`. The database is
 `supabase/migrations/`.
@@ -33,8 +41,16 @@ api/
 │       ├── repository.ts     # data access (interface + PostgREST + in-memory)
 │       └── handler.test.ts   # 17 tests, no server required
 └── v1/
-    └── languages.ts          # ~60 line adapter: the only file that knows Vercel
+    ├── languages.ts
+    ├── translate.ts
+    ├── dictionary/search.ts
+    ├── ai/chat.ts
+    └── users/me.ts
 ```
+
+Deployment is covered in `docs/operations/DEPLOYMENT.md`. In short: there is no
+separate backend to deploy — Vercel builds `dist/` and `api/` from one commit and
+serves both on one domain.
 
 The split is deliberate. `_lib` code is a pure function of its inputs, so it is
 tested directly with plain objects. `v1/*.ts` only translates between the

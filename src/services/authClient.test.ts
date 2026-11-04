@@ -185,6 +185,65 @@ describe('signUp', () => {
   })
 })
 
+describe('configuration failures', () => {
+  it('names the missing variables instead of saying "not configured"', async () => {
+    // The original message left a developer with nothing to act on. This case
+    // pins the specific guidance, because "sign-in is not configured" was the
+    // exact error reported from a build with no .env at all.
+    vi.resetModules()
+    vi.doMock('@/config/env', () => ({
+      env: {
+        supabaseUrl: undefined,
+        supabaseAnonKey: undefined,
+        isProduction: false,
+        apiOrigin: undefined,
+        apiVersion: 'v1',
+        appVersion: '0.0.0',
+      },
+    }))
+
+    const fresh = await import('./authClient')
+    const error = await fresh.authService
+      .signIn('ada@example.com', 'correct1A')
+      .catch((cause: unknown) => cause)
+
+    expect(error).toBeInstanceOf(fresh.AuthError)
+    const authError = error as InstanceType<typeof fresh.AuthError>
+    expect(authError.code).toBe('NOT_CONFIGURED')
+    expect(authError.message).toContain('VITE_SUPABASE_URL')
+    expect(authError.message).toContain('VITE_SUPABASE_ANON_KEY')
+    // It must also explain *why* a rebuild is needed, since that is the part
+    // people miss: the values are inlined at build time.
+    expect(authError.message.toLowerCase()).toContain('rebuild')
+
+    vi.doUnmock('@/config/env')
+    vi.resetModules()
+  })
+
+  it('does not make a network call when unconfigured', async () => {
+    vi.resetModules()
+    vi.doMock('@/config/env', () => ({
+      env: {
+        supabaseUrl: undefined,
+        supabaseAnonKey: undefined,
+        isProduction: false,
+        apiOrigin: undefined,
+        apiVersion: 'v1',
+        appVersion: '0.0.0',
+      },
+    }))
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+
+    const fresh = await import('./authClient')
+    await fresh.authService.signIn('ada@example.com', 'correct1A').catch(() => undefined)
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+
+    vi.doUnmock('@/config/env')
+    vi.resetModules()
+  })
+})
+
 describe('signIn', () => {
   it('posts to the password grant and stores the session', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(200, tokenPayload()))
