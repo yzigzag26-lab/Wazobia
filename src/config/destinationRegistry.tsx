@@ -1,30 +1,49 @@
 import {
   IconAi,
-  IconCommunity,
   IconDictionary,
   IconLearn,
-  IconPreserve,
-  IconResearch,
-  IconSpeak,
+  IconProfile,
   IconTranslate,
 } from '@/components/ui/icons'
 import type { Destination } from './destinations'
 
 /**
- * The eight approved WAZOBIA destinations (blueprint §4).
+ * The five approved WAZOBIA destinations, in product order.
  *
  * Every navigation surface — desktop sidebar, phone bottom bar, phone "More"
- * sheet, marketing footer and page titles — derives from this array.
- * There is exactly one place to add, rename or re-order a destination.
+ * sheet, marketing footer, application entry grid and page titles — derives
+ * from this array. There is exactly one place to add, rename or re-order a
+ * destination.
  *
- * (No command palette exists today. When one is built it must read from here
- * rather than defining its own list.)
- *
- * `status` is deliberately honest. It describes what actually exists today, so
- * no navigation item can imply a working feature that is not built. Update it
- * only when the corresponding phase ships.
+ * `status` is deliberately honest. `learn` is `available` because its lessons,
+ * quizzes, proverbs and stories are real, reviewed client-side content rather
+ * than a placeholder. The three utilities stay `awaiting-backend` because their
+ * value depends on services that do not exist yet. Nothing here is `planned`
+ * today, but the status remains part of the model for future destinations.
  */
 export const DESTINATIONS: readonly Destination[] = [
+  {
+    id: 'learn',
+    name: 'WAZOBIA Learn',
+    shortName: 'Learn',
+    href: '/app/learn',
+    summary: 'Lessons, quizzes, proverb cards and African stories.',
+    status: 'available',
+    tier: 'primary',
+    icon: <IconLearn />,
+    primaryMobile: true,
+  },
+  {
+    id: 'dictionary',
+    name: 'WAZOBIA Dictionary',
+    shortName: 'Dictionary',
+    href: '/app/dictionary',
+    summary: 'Search words and phrases with tone marks, senses and examples.',
+    status: 'awaiting-backend',
+    tier: 'utility',
+    icon: <IconDictionary />,
+    primaryMobile: true,
+  },
   {
     id: 'ai',
     name: 'WAZOBIA AI',
@@ -32,6 +51,7 @@ export const DESTINATIONS: readonly Destination[] = [
     href: '/app/ai',
     summary: 'Ask about African languages, culture, grammar and meaning.',
     status: 'awaiting-backend',
+    tier: 'utility',
     icon: <IconAi />,
     primaryMobile: true,
   },
@@ -42,77 +62,36 @@ export const DESTINATIONS: readonly Destination[] = [
     href: '/app/translate',
     summary: 'Translate between Yorùbá, Hausa, Igbo and English with context.',
     status: 'awaiting-backend',
+    tier: 'utility',
     icon: <IconTranslate />,
     primaryMobile: true,
   },
   {
-    id: 'learn',
-    name: 'WAZOBIA Learn',
-    shortName: 'Learn',
-    href: '/app/learn',
-    summary: 'Structured courses, vocabulary, listening and Read Aloud.',
-    status: 'awaiting-backend',
-    icon: <IconLearn />,
+    id: 'profile',
+    name: 'Profile',
+    shortName: 'Profile',
+    href: '/app/profile',
+    summary: 'Your details, language preferences, appearance and security.',
+    status: 'available',
+    tier: 'account',
+    icon: <IconProfile />,
     primaryMobile: true,
-  },
-  {
-    id: 'speak',
-    name: 'WAZOBIA Speak',
-    shortName: 'Speak',
-    href: '/app/speak',
-    summary: 'Listen to reference pronunciation and practise your own.',
-    status: 'awaiting-backend',
-    icon: <IconSpeak />,
-    primaryMobile: false,
-  },
-  {
-    id: 'dictionary',
-    name: 'WAZOBIA Dictionary',
-    shortName: 'Dictionary',
-    href: '/app/dictionary',
-    summary: 'Search words and phrases with tone marks, senses and examples.',
-    status: 'awaiting-backend',
-    icon: <IconDictionary />,
-    primaryMobile: true,
-  },
-  {
-    id: 'community',
-    name: 'WAZOBIA Community',
-    shortName: 'Community',
-    href: '/app/community',
-    summary: 'Moderated discussion, language exchange and Q&A with speakers.',
-    status: 'planned',
-    icon: <IconCommunity />,
-    primaryMobile: false,
-  },
-  {
-    id: 'preserve',
-    name: 'WAZOBIA Preserve',
-    shortName: 'Preserve',
-    href: '/app/preserve',
-    summary: 'Proverbs, folktales and oral histories, kept with their provenance.',
-    status: 'planned',
-    icon: <IconPreserve />,
-    primaryMobile: false,
-  },
-  {
-    id: 'research',
-    name: 'WAZOBIA Research & AI Data',
-    shortName: 'Research',
-    href: '/app/research',
-    summary: 'Governed datasets, benchmarks and research requests.',
-    status: 'planned',
-    icon: <IconResearch />,
-    primaryMobile: false,
   },
 ] as const
 
-/** Destinations shown in the phone bottom bar. Capped at four by design. */
+/**
+ * Destinations shown in the phone bottom bar.
+ *
+ * With five destinations they now all fit: the bar renders exactly one item per
+ * destination and needs no "More" surface. This constant is kept (rather than
+ * deleted) because the bar is still a filtered view of the registry, and adding
+ * a sixth destination later should not silently overflow the bar.
+ */
 export const PRIMARY_MOBILE_DESTINATIONS: readonly Destination[] = DESTINATIONS.filter(
   (destination) => destination.primaryMobile,
-).slice(0, 4)
+)
 
-/** Destinations reachable from the phone "More" sheet. */
+/** Destinations only reachable from the phone "More" sheet. Empty today. */
 export const SECONDARY_MOBILE_DESTINATIONS: readonly Destination[] = DESTINATIONS.filter(
   (destination) => !PRIMARY_MOBILE_DESTINATIONS.includes(destination),
 )
@@ -121,6 +100,10 @@ export function findDestinationByPath(pathname: string): Destination | undefined
   return DESTINATIONS.find(
     (destination) => pathname === destination.href || pathname.startsWith(`${destination.href}/`),
   )
+}
+
+export function findDestinationById(id: string): Destination | undefined {
+  return DESTINATIONS.find((destination) => destination.id === id)
 }
 
 export const STATUS_LABELS = {

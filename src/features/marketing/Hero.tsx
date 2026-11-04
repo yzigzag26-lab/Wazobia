@@ -77,7 +77,7 @@ export function Hero() {
             </p>
 
             {/* Language gesture */}
-            <dl className="mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-paper-300 pt-6">
+            <dl className="mt-10 grid max-w-lg gap-4 border-t border-paper-300 pt-6 sm:grid-cols-3">
               {GREETINGS.map((greeting) => (
                 <div key={greeting.code}>
                   <dt className="text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-ink-400">

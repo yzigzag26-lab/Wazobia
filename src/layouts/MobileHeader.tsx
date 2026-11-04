@@ -7,7 +7,7 @@ import { WazobiaLogo } from '@/components/brand/WazobiaLogo'
  */
 export function MobileHeader() {
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-paper-200 bg-paper-50/95 px-4 backdrop-blur-sm lg:hidden">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-paper-200 bg-paper-50 px-4 backdrop-blur-sm lg:hidden">
       <Link to="/" aria-label="WAZOBIA — home" className="flex items-center">
         <WazobiaLogo variant="emblem" height={34} decorative />
       </Link>

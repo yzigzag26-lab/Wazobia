@@ -24,6 +24,34 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
     <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
     <meta name="theme-color" content="#fbf9f5" />
+    <meta name="theme-color" content="#0b100d" media="(prefers-color-scheme: dark)" />
+
+    <!--
+      Applies the stored theme before first paint.
+
+      Without this the page renders light and then flips, which is a visible
+      flash on every load for dark-mode users. It is inline and blocking by
+      design (a few hundred bytes, no network), and it is intentionally
+      duplicated logic: it must run before the React bundle evaluates.
+      `src/stores/theme.tsx` owns the same key afterwards.
+    -->
+    <script>
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('wazobia.theme')
+          var preference = stored ? JSON.parse(stored) : 'system'
+          var dark =
+            preference === 'dark' ||
+            (preference === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          var theme = dark ? 'dark' : 'light'
+          document.documentElement.dataset.theme = theme
+          document.documentElement.style.colorScheme = theme
+        } catch (error) {
+          document.documentElement.dataset.theme = 'light'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

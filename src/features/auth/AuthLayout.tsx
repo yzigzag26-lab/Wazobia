@@ -44,7 +44,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
         </div>
 
         {/* ------------------------------------------------------ brand panel */}
-        <aside className="relative hidden overflow-hidden border-l border-paper-200 bg-forest-900 lg:block">
+        <aside className="on-brand relative hidden overflow-hidden border-l border-paper-200 bg-forest-900 lg:block">
           <div
             aria-hidden="true"
             className="absolute inset-0 opacity-[0.16]"
@@ -84,7 +84,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
                   </div>
                 ))}
               </dl>
-              <p className="mt-5 text-xs leading-5 text-paper-200/60">
+              <p className="mt-5 text-xs leading-5 text-white/60">
                 English is available throughout as a bridge language.
               </p>
             </div>

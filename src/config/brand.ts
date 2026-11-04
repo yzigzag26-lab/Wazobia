@@ -53,7 +53,7 @@ export interface BrandConfig {
 export const brand: BrandConfig = {
   name: 'WAZOBIA',
   positioning: 'The African Language Ecosystem',
-  promise: 'Learn. Speak. Understand. Preserve.',
+  promise: 'Learn. Understand. Translate.',
   descriptor: 'Yorùbá · Hausa · Igbo',
   lockupSrc: '/brand/wazobia-lockup.png',
   lockupWebp: '/brand/wazobia-lockup.webp',

@@ -43,13 +43,13 @@ export function FinalCta() {
             {/* Gold accent panel — the logo's highlight colour, used as a surface. */}
             <div className="relative flex flex-col justify-center gap-4 border-t border-gold-300 bg-gold-100 p-7 sm:p-10 lg:border-l lg:border-t-0">
               <p className="font-serif text-[1.375rem] leading-snug text-forest-900">
-                Learn. Speak.
+                Learn.
                 <br />
                 Understand.
                 <br />
-                Preserve.
+                Translate.
               </p>
-              <p className="text-[0.8125rem] leading-6 text-forest-800/80">
+              <p className="text-[0.8125rem] leading-6 text-forest-800">
                 Three languages at launch. A foundation designed to carry every African language
                 that follows.
               </p>

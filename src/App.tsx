@@ -5,6 +5,8 @@ import { RouterProvider } from 'react-router-dom'
 import { createQueryClient } from '@/lib/queryClient'
 import { LanguagePreferenceProvider } from '@/stores/languagePreference'
 import { SessionProvider } from '@/stores/session'
+import { ThemeProvider } from '@/stores/theme'
+import { ProfileProvider } from '@/stores/profile'
 import { router } from '@/router'
 
 /**
@@ -21,7 +23,18 @@ export function App() {
       <Tooltip.Provider delayDuration={400} skipDelayDuration={200}>
         <SessionProvider>
           <LanguagePreferenceProvider>
-            <RouterProvider router={router} />
+            {/*
+              Theme sits outside the router so the palette is applied before any
+              route renders — a light flash on a dark-preference device is a bug,
+              not a detail.
+              Profile sits inside the session because the primary language is
+              resolved from the onboarding answers the session owns.
+            */}
+            <ThemeProvider>
+              <ProfileProvider>
+                <RouterProvider router={router} />
+              </ProfileProvider>
+            </ThemeProvider>
           </LanguagePreferenceProvider>
         </SessionProvider>
       </Tooltip.Provider>

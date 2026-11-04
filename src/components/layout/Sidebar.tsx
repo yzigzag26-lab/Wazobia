@@ -110,7 +110,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, className }: SidebarProp
                     collapsed ? 'justify-center px-0' : 'px-2',
                     isActive
                       ? 'bg-white font-medium text-ink-900 shadow-[inset_0_0_0_1px_var(--color-paper-300)]'
-                      : 'text-ink-600 hover:bg-paper-200/70 hover:text-ink-900',
+                      : 'text-ink-600 hover:bg-paper-200 hover:text-ink-900',
                   )
                 }
               >
