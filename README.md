@@ -45,6 +45,8 @@ npm run dev                    # http://localhost:5173
 
 Tooling rules, the lint configuration and the CI gate are documented in
 [`docs/architecture/engineering-standards.md`](docs/architecture/engineering-standards.md).
+The most recent full audit — what was verified, what was fixed, what is still open — is
+[`docs/architecture/repository-inspection-2026-11-04.md`](docs/architecture/repository-inspection-2026-11-04.md).
 
 ---
 
