@@ -47,24 +47,24 @@ export function WazobiaLogo({
   function picture(
     src: string,
     webp: string,
-    width: number,
-    height: number,
-    className: string,
+    intrinsicWidth: number,
+    intrinsicHeight: number,
+    imageClassName: string,
     style?: CSSProperties,
   ) {
     return (
-      <picture className={cn('contents', className)}>
+      <picture className={cn('contents', imageClassName)}>
         <source srcSet={webp} type="image/webp" />
         <img
           src={src}
           alt={alt}
           aria-hidden={decorative || undefined}
-          width={width}
-          height={height}
+          width={intrinsicWidth}
+          height={intrinsicHeight}
           decoding="async"
           loading={priority ? 'eager' : 'lazy'}
           fetchPriority={fetchPriority}
-          className={className}
+          className={imageClassName}
           style={style}
         />
       </picture>

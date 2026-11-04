@@ -50,7 +50,10 @@ function assertNoServiceRoleKeyInBrowser(key: string | undefined): void {
       role?: unknown
     }
     if (decoded.role === 'service_role') {
-      // eslint-disable-next-line no-console
+      // Intentional: this is the one diagnostic in the codebase that must reach
+      // a developer's console. It never fires in production and never prints a
+      // key — only the fact that the wrong one was supplied.
+      // oxlint-disable-next-line no-console
       console.error(
         '[wazobia] SECURITY: a Supabase service_role key was supplied as VITE_SUPABASE_ANON_KEY. ' +
           'Server-side keys must never be exposed to the browser. Requests will be blocked.',

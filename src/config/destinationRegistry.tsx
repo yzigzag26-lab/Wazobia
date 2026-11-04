@@ -14,8 +14,11 @@ import type { Destination } from './destinations'
  * The eight approved WAZOBIA destinations (blueprint §4).
  *
  * Every navigation surface — desktop sidebar, phone bottom bar, phone "More"
- * sheet, command/search palette, page metadata — derives from this array.
+ * sheet, marketing footer and page titles — derives from this array.
  * There is exactly one place to add, rename or re-order a destination.
+ *
+ * (No command palette exists today. When one is built it must read from here
+ * rather than defining its own list.)
  *
  * `status` is deliberately honest. It describes what actually exists today, so
  * no navigation item can imply a working feature that is not built. Update it

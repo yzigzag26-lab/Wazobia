@@ -27,9 +27,17 @@ export function MarketingLayout() {
   const location = useLocation()
   const { isGuest } = useSession()
 
+  /**
+   * Reset scroll when the visitor lands on a page without an anchor.
+   *
+   * `hash` is the only dependency that matters: the marketing shell is not
+   * remounted on navigation, so the hash is what changes when a visitor clicks
+   * "Languages" and back to a plain `/`. A fresh navigation also clears the
+   * hash, which fires this again. `pathname` would be a redundant trigger.
+   */
   useEffect(() => {
     if (!location.hash) window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-  }, [location.pathname, location.hash])
+  }, [location.hash])
 
   return (
     <div className="min-h-dvh bg-paper-50">
