@@ -23,7 +23,14 @@
 
     <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
     <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
-    <meta name="theme-color" content="#fbf9f5" />
+    <!--
+      The browser/PWA chrome colour tracks the *app's* theme, not the OS setting.
+      With light as the default, a dark-OS device would otherwise paint a dark
+      bar around a light app. The pre-paint script below corrects this to the
+      dark value when a stored 'dark' preference (or 'system' on a dark device)
+      applies; this static pair is the no-JS and first-paint fallback.
+    -->
+    <meta name="theme-color" content="#fbfaf6" />
     <meta name="theme-color" content="#0b100d" media="(prefers-color-scheme: dark)" />
 
     <!--
@@ -34,12 +41,18 @@
       design (a few hundred bytes, no network), and it is intentionally
       duplicated logic: it must run before the React bundle evaluates.
       `src/stores/theme.tsx` owns the same key afterwards.
+
+      The default is 'light', matching DEFAULT_THEME in `src/stores/theme.tsx`.
+      An unset preference is NOT resolved from `prefers-color-scheme`: light is
+      the product's own look, and dark is opted into (directly, or by choosing
+      "System" in Settings → Appearance). The two defaults are kept in step by
+      `src/config/themeDefault.test.ts`.
     -->
     <script>
       ;(function () {
         try {
           var stored = localStorage.getItem('wazobia.theme')
-          var preference = stored ? JSON.parse(stored) : 'system'
+          var preference = stored ? JSON.parse(stored) : 'light'
           var dark =
             preference === 'dark' ||
             (preference === 'system' &&
@@ -47,6 +60,16 @@
           var theme = dark ? 'dark' : 'light'
           document.documentElement.dataset.theme = theme
           document.documentElement.style.colorScheme = theme
+
+          // Keep the browser chrome the same colour as the page. The static
+          // metas above follow the OS; this overrides them with the app's
+          // actual theme so the two never disagree.
+          var chroma = theme === 'dark' ? '#0b100d' : '#fbfaf6'
+          var metas = document.querySelectorAll('meta[name="theme-color"]')
+          for (var i = 0; i < metas.length; i++) {
+            metas[i].setAttribute('content', chroma)
+            metas[i].removeAttribute('media')
+          }
         } catch (error) {
           document.documentElement.dataset.theme = 'light'
         }

@@ -127,3 +127,91 @@ describe('theme tokens', () => {
     expect(block).not.toMatch(/--color-paper-[0-9]+:\s*#f/i)
   })
 })
+
+describe('a token never does two opposite jobs', () => {
+  /*
+   * The defect this guards against is structural, and no contrast assertion can
+   * catch it on its own: `forest-700/800/900` were used BOTH as a dark ground
+   * under white label text (`bg-forest-700 text-white`) and as a text colour
+   * (`text-forest-800`). One value cannot be dark enough to carry white type and
+   * light enough to be legible as type on a dark page, so whichever role the
+   * palette was tuned for, the other silently broke.
+   *
+   * These tests fail if a future change reintroduces that overlap — either by
+   * painting white type on a text-ramp token, or by using a ground-ramp token
+   * for text.
+   */
+
+  /** Pairs a forest ground with literal-white label text, in either order. */
+  const FOREST_GROUND = /\bbg-forest-\d{2,3}\b/g
+  const WHITE_TYPE = /\b(?:text-on-brand|text-white)\b/
+
+  it('never paints white type on a text-ramp ground', () => {
+    const offenders: string[] = []
+    for (const file of SOURCE_FILES) {
+      const content = readFileSync(file, 'utf8')
+      // Class strings mix orders (`bg-… text-…` and `text-… bg-…` both occur),
+      // so each quoted string is checked as a whole rather than by regex order.
+      for (const quoted of content.matchAll(/(['"`])((?:[^'"`\\]|\\.)*?)\1/g)) {
+        const chunk = quoted[2] ?? ''
+        if (WHITE_TYPE.test(chunk) && FOREST_GROUND.test(chunk)) {
+          offenders.push(`${file.replace(ROOT, '')}: ${chunk.trim().slice(0, 120)}`)
+        }
+        FOREST_GROUND.lastIndex = 0
+      }
+    }
+    expect(
+      offenders,
+      'White label text sits on a forest-* ground. forest-* is the TEXT ramp and\n' +
+        'inverts to a light green in dark mode, which puts white on mint (~1.6:1).\n' +
+        'Use a brand-* token for the ground:\n' +
+        offenders.join('\n'),
+    ).toEqual([])
+  })
+
+  it('never uses a ground-ramp token as a text colour', () => {
+    const offenders: string[] = []
+    for (const file of SOURCE_FILES) {
+      const content = readFileSync(file, 'utf8')
+      for (const match of content.matchAll(/\btext-(brand)-\d{2,3}\b/g)) {
+        offenders.push(`${file.replace(ROOT, '')}: ${match[0]}`)
+      }
+    }
+    expect(
+      offenders,
+      'brand-* is the GROUND ramp (dark in both themes). As text on a dark page it\n' +
+        'is unreadable. Use forest-* for text, which inverts:\n' +
+        offenders.join('\n'),
+    ).toEqual([])
+  })
+
+  it('never uses text-white, which is the surface token in dark mode', () => {
+    // `text-white` compiles to `var(--color-white)`, and `--color-white` is
+    // re-pointed at the near-black raised surface in dark mode. It was the cause
+    // of the primary button measuring 2.64:1. `text-on-brand` is literal white.
+    const offenders: string[] = []
+    for (const file of SOURCE_FILES) {
+      const content = readFileSync(file, 'utf8')
+      if (/\btext-white\b/.test(content)) offenders.push(file.replace(ROOT, ''))
+    }
+    expect(offenders, `Use text-on-brand instead of text-white:\n${offenders.join('\n')}`).toEqual(
+      [],
+    )
+  })
+
+  it('defines the ground ramp in both themes', () => {
+    // A ground ramp that exists only in dark mode would leave light mode with no
+    // rule at all for `bg-brand-*`.
+    const light = lightTokens()
+    const dark = darkTokens()
+    const missing: string[] = []
+    for (const step of ['600', '700', '800', '900']) {
+      const token = `brand-${step}`
+      if (!light.has(token)) missing.push(`${token} (light)`)
+      if (!dark.has(token)) missing.push(`${token} (dark)`)
+    }
+    expect(missing, `The brand ground ramp must exist in both themes:\n${missing.join('\n')}`).toEqual(
+      [],
+    )
+  })
+})

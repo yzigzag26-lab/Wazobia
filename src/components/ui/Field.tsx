@@ -181,7 +181,7 @@ export const CheckboxField = forwardRef<HTMLInputElement, CheckboxFieldProps>(
             aria-describedby={error ? errorId : undefined}
             className={cn(
               'mt-0.5 size-4 shrink-0 cursor-pointer appearance-none rounded-[3px] border bg-white',
-              'checked:border-forest-700 checked:bg-forest-700',
+              'checked:border-brand-700 checked:bg-brand-700',
               'checked:bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 12%27%3E%3Cpath d=%27M2.2 6.2 4.6 8.6 9.8 3.4%27 fill=%27none%27 stroke=%27white%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E")]',
               'bg-center bg-no-repeat',
               error ? 'border-ember-600' : 'border-paper-400',

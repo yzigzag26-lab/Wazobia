@@ -104,14 +104,14 @@ export default function NotificationsSettings() {
                   className={cn(
                     'relative mt-0.5 h-5 w-9 shrink-0 rounded-full border transition-colors duration-150',
                     enabled
-                      ? 'border-forest-700 bg-forest-700'
+                      ? 'border-brand-700 bg-brand-700'
                       : 'border-paper-300 bg-paper-200 hover:border-ink-400',
                   )}
                 >
                   <span
                     aria-hidden="true"
                     className={cn(
-                      'absolute top-0.5 size-3.5 rounded-full bg-white shadow-sm transition-[left] duration-150',
+                      'absolute top-0.5 size-3.5 rounded-full bg-on-brand shadow-sm transition-[left] duration-150',
                       enabled ? 'left-[1.125rem]' : 'left-0.5',
                     )}
                   />
