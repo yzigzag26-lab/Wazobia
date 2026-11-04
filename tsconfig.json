@@ -2,6 +2,10 @@
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.node.json" },
+    /* The server functions are typechecked, not just deployed. Without this
+       reference `api/` was outside every compilation unit, so a type error
+       there could reach production while `npm run verify` stayed green. */
+    { "path": "./api/tsconfig.json" }
   ]
 }
