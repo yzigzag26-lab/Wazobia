@@ -38,12 +38,13 @@ export const translateService = {
 
 export const dictionaryService = {
   search: async (
-    params: { query: string; language?: string; page?: number },
+    params: { query: string; language?: string; page?: number; pageSize?: number },
     signal?: AbortSignal,
   ): Promise<DictionarySearchResponse> => {
     const search = new URLSearchParams({ q: params.query })
-    if (params.language) search.set('language', params.language)
+    if (params.language !== undefined) search.set('language', params.language)
     if (params.page !== undefined) search.set('page', String(params.page))
+    if (params.pageSize !== undefined) search.set('page_size', String(params.pageSize))
     return apiRequest<DictionarySearchResponse>(`/dictionary/search?${search.toString()}`, {
       signal,
     })

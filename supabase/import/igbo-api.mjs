@@ -112,7 +112,7 @@ function main() {
 
   // Sorting the keys makes the output stable across runs and across Node
   // versions, which is what allows the generated SQL to be diffed.
-  for (const headword of Object.keys(dictionary).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
+  for (const headword of Object.keys(dictionary).toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
     const records = dictionary[headword]
     if (!Array.isArray(records)) continue
     stats.headwords += 1
