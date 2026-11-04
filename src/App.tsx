@@ -5,6 +5,7 @@ import { RouterProvider } from 'react-router-dom'
 import { createQueryClient } from '@/lib/queryClient'
 import { LanguagePreferenceProvider } from '@/stores/languagePreference'
 import { SessionProvider } from '@/stores/session'
+import { AuthProvider } from '@/stores/auth'
 import { ThemeProvider } from '@/stores/theme'
 import { ProfileProvider } from '@/stores/profile'
 import { router } from '@/router'
@@ -21,8 +22,12 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Tooltip.Provider delayDuration={400} skipDelayDuration={200}>
-        <SessionProvider>
-          <LanguagePreferenceProvider>
+        {/* Auth wraps the guest session: a signed-in user and a guest are two
+            different kinds of session, and the guest layer must not be
+            initialised before we know which one applies. */}
+        <AuthProvider>
+          <SessionProvider>
+            <LanguagePreferenceProvider>
             {/*
               Theme sits outside the router so the palette is applied before any
               route renders — a light flash on a dark-preference device is a bug,
@@ -30,13 +35,14 @@ export function App() {
               Profile sits inside the session because the primary language is
               resolved from the onboarding answers the session owns.
             */}
-            <ThemeProvider>
-              <ProfileProvider>
-                <RouterProvider router={router} />
-              </ProfileProvider>
-            </ThemeProvider>
-          </LanguagePreferenceProvider>
-        </SessionProvider>
+              <ThemeProvider>
+                <ProfileProvider>
+                  <RouterProvider router={router} />
+                </ProfileProvider>
+              </ThemeProvider>
+            </LanguagePreferenceProvider>
+          </SessionProvider>
+        </AuthProvider>
       </Tooltip.Provider>
     </QueryClientProvider>
   )

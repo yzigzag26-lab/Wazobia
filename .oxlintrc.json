@@ -63,6 +63,23 @@
       "files": ["*.config.{ts,js}", "vite.config.ts"],
       "env": { "node": true },
       "rules": { "no-console": "off" }
+    },
+    {
+      // Import scripts are command-line tools: printing the row count to stdout
+      // is their entire interface, and they run in Node, not a browser.
+      "files": ["supabase/import/**/*.mjs"],
+      "env": { "node": true },
+      "rules": { "no-console": "off" }
+    },
+    {
+      // API tests live outside `src/` but are still tests: the same allowances
+      // for building malformed fixtures apply.
+      "files": ["api/**/*.test.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "typescript/no-non-null-assertion": "off",
+        "eslint/no-await-in-loop": "off"
+      }
     }
   ]
 }

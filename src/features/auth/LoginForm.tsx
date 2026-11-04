@@ -5,6 +5,8 @@ import { CheckboxField, Field } from '@/components/ui/Field'
 import { StateMessage } from '@/components/ui/StateMessage'
 import { IconInfo } from '@/components/ui/icons'
 import { useSession } from '@/hooks/useSession'
+import { useAuth } from '@/hooks/useAuth'
+import { AuthError } from '@/services/authClient'
 import {
   hasErrors,
   validateLogin,
@@ -18,20 +20,30 @@ const INITIAL: LoginValues = { identifier: '', password: '' }
 /**
  * Login form.
  *
- * Validates, then stops — there is no auth service to call, so it never fakes a
- * successful sign-in. "Remember me" and password recovery are shown because they
- * are real parts of the finished flow, but both state clearly that they activate
- * only after backend integration.
+ * This is a real sign-in. On submit it calls Supabase Auth through
+ * `authService`, stores the returned session, and navigates into the app.
+ *
+ * There is no email-verification step: the project runs with
+ * `mailer_autoconfirm` on, so a correct email + password is immediately a
+ * signed-in session. If that were ever turned back off, `signIn` would still
+ * work for existing users — Supabase issues a token to a confirmed account
+ * regardless — and the honest failure for an unconfirmed one is the message
+ * below.
+ *
+ * "Continue as guest" is kept: public pages genuinely work without an account.
+ * Protected endpoints answer 401, and the UI says so rather than pretending.
  */
 export function LoginForm() {
   const [values, setValues] = useState<LoginValues>(INITIAL)
   const [errors, setErrors] = useState<FieldErrors<LoginField>>({})
   const [remember, setRemember] = useState(false)
   const [touched, setTouched] = useState<Partial<Record<LoginField, boolean>>>({})
-  const [submitted, setSubmitted] = useState(false)
   const [recoveryNotice, setRecoveryNotice] = useState(false)
   const { startGuestSession } = useSession()
+  const { signIn } = useAuth()
   const navigate = useNavigate()
+  const [submitting, setSubmitting] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
 
   function setField<K extends LoginField>(key: K, value: LoginValues[K]) {
     setValues((current) => ({ ...current, [key]: value }))
@@ -43,11 +55,12 @@ export function LoginForm() {
     })
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const nextErrors = validateLogin(values)
     setErrors(nextErrors)
     setTouched({ identifier: true, password: true })
+    setFailure(null)
 
     if (hasErrors(nextErrors)) {
       const firstKey = Object.keys(nextErrors)[0]
@@ -55,8 +68,21 @@ export function LoginForm() {
       return
     }
 
-    // No auth service exists. Do not simulate a session.
-    setSubmitted(true)
+    setSubmitting(true)
+    try {
+      // The identifier is an email: accounts are email-based, and the field
+      // label says so once the user starts typing something without an "@".
+      await signIn(values.identifier.trim(), values.password)
+      navigate('/app', { replace: true })
+    } catch (error) {
+      if (error instanceof AuthError) {
+        setFailure(error.message)
+      } else {
+        setFailure('Something went wrong while signing you in. Please try again.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   function continueAsGuest() {
@@ -66,12 +92,12 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      {submitted ? (
+      {failure !== null ? (
         <StateMessage
-          tone="waiting"
+          tone="error"
           icon={<IconInfo width={18} height={18} />}
-          title="Sign-in is not available yet"
-          description="WAZOBIA does not have an authentication service connected, so this form cannot sign you in. You were not logged in and nothing was sent. Continue as a guest to explore the platform."
+          title="Could not sign you in"
+          description={failure}
         />
       ) : null}
 
@@ -114,8 +140,8 @@ export function LoginForm() {
         <StateMessage
           tone="neutral"
           icon={<IconInfo width={16} height={16} />}
-          title="Password recovery opens with accounts"
-          description="Sending reset links needs the authentication service, which is not connected yet. Nothing has been emailed."
+          title="Password recovery is not wired up yet"
+          description="Reset emails need the project's SMTP sender configured. Until then, ask an administrator to reset your password. Nothing has been emailed."
           action={
             <Button variant="ghost" size="sm" onClick={() => setRecoveryNotice(false)} type="button">
               Dismiss
@@ -133,14 +159,14 @@ export function LoginForm() {
           <>
             Keep me signed in on this device
             <span className="block text-xs text-ink-500">
-              Applied once sign-in is live. Does not affect guest sessions.
+              Your session is stored in this browser and refreshed automatically.
             </span>
           </>
         }
       />
 
-      <Button type="submit" fullWidth>
-        Log in
+      <Button type="submit" fullWidth disabled={submitting}>
+        {submitting ? 'Signing in…' : 'Log in'}
       </Button>
 
       <div className="relative py-1 text-center">
