@@ -44,7 +44,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
         </div>
 
         {/* ------------------------------------------------------ brand panel */}
-        <aside className="on-brand relative hidden overflow-hidden border-l border-paper-200 bg-forest-900 lg:block">
+        <aside className="on-brand relative hidden overflow-hidden border-l border-paper-200 bg-brand-900 lg:block">
           <div
             aria-hidden="true"
             className="absolute inset-0 opacity-[0.16]"
@@ -56,19 +56,19 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
           <div className="relative flex h-full flex-col justify-evenly gap-10 p-12 xl:p-16">
             <div>
               <p className="text-eyebrow text-gold-500">{brand.positioning}</p>
-              <p className="text-display mt-4 max-w-[20ch] text-[2.125rem] text-paper-50">
+              <p className="text-display mt-4 max-w-[20ch] text-[2.125rem] text-on-brand">
                 Africa speaks. Let&rsquo;s understand every voice.
               </p>
             </div>
 
             {/* The official lockup, presented on its own light plate because the
                 supplied artwork has a baked-in white background. */}
-            <div className="rounded-[var(--radius-lg)] bg-white p-6">
+            <div className="rounded-[var(--radius-lg)] bg-on-brand p-6">
               <WazobiaLogo variant="lockup" height={230} className="mx-auto w-full max-w-[340px]" />
             </div>
 
             <div>
-              <dl className="grid grid-cols-3 gap-4 border-t border-forest-700 pt-6">
+              <dl className="grid grid-cols-3 gap-4 border-t border-brand-700 pt-6">
                 {[
                   ['Yorùbá', 'yo'],
                   ['Hausa', 'ha'],
@@ -78,13 +78,13 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
                     <dt className="text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-gold-500">
                       Target
                     </dt>
-                    <dd lang={code} className="mt-1 font-serif text-[0.9375rem] text-paper-50">
+                    <dd lang={code} className="mt-1 font-serif text-[0.9375rem] text-on-brand">
                       {name}
                     </dd>
                   </div>
                 ))}
               </dl>
-              <p className="mt-5 text-xs leading-5 text-white/60">
+              <p className="mt-5 text-xs leading-5 text-on-brand/60">
                 English is available throughout as a bridge language.
               </p>
             </div>

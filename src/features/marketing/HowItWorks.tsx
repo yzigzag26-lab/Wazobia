@@ -25,7 +25,7 @@ export function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="on-brand scroll-mt-20 border-t border-paper-200 bg-forest-900 text-paper-50"
+      className="on-brand scroll-mt-20 border-t border-paper-200 bg-brand-900 text-on-brand"
       aria-labelledby="how-heading"
     >
       <div className="mx-auto w-full max-w-[80rem] px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
@@ -34,25 +34,25 @@ export function HowItWorks() {
           <h2 id="how-heading" className="text-display mt-3 text-[2rem] sm:text-[2.5rem]">
             Language technology with a human review path.
           </h2>
-          <p className="mt-4 text-[0.9375rem] leading-7 text-white/85">
+          <p className="mt-4 text-[0.9375rem] leading-7 text-on-brand/85">
             Generated text and human-reviewed knowledge are different things, and WAZOBIA never
             blurs them. That distinction is the whole design.
           </p>
         </div>
 
-        <ol className="mt-12 grid gap-px overflow-hidden rounded-[var(--radius-lg)] border border-forest-700 bg-forest-700 sm:grid-cols-2">
+        <ol className="mt-12 grid gap-px overflow-hidden rounded-[var(--radius-lg)] border border-brand-700 bg-brand-700 sm:grid-cols-2">
           {STEPS.map((item) => (
-            <li key={item.step} className="on-brand bg-forest-900 p-6 sm:p-7">
+            <li key={item.step} className="on-brand bg-brand-900 p-6 sm:p-7">
               <span className="font-mono text-[0.6875rem] tracking-[0.12em] text-gold-500">
                 {item.step}
               </span>
-              <h3 className="mt-3 text-[1.0625rem] font-semibold text-paper-50">{item.title}</h3>
-              <p className="mt-2 text-[0.875rem] leading-6 text-white/75">{item.body}</p>
+              <h3 className="mt-3 text-[1.0625rem] font-semibold text-on-brand">{item.title}</h3>
+              <p className="mt-2 text-[0.875rem] leading-6 text-on-brand/75">{item.body}</p>
             </li>
           ))}
         </ol>
 
-        <div className="mt-10 grid gap-6 border-t border-forest-700 pt-8 sm:grid-cols-3">
+        <div className="mt-10 grid gap-6 border-t border-brand-700 pt-8 sm:grid-cols-3">
           {[
             { k: 'Provenance', v: 'Every answer labelled as AI-generated or reviewed.' },
             { k: 'Consent', v: 'Publication, research and AI-training permission are separate.' },
@@ -62,7 +62,7 @@ export function HowItWorks() {
               <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-gold-500">
                 {item.k}
               </p>
-              <p className="mt-1.5 text-sm leading-6 text-white/80">{item.v}</p>
+              <p className="mt-1.5 text-sm leading-6 text-on-brand/80">{item.v}</p>
             </div>
           ))}
         </div>

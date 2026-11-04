@@ -108,7 +108,7 @@ export function CommunityInviteModal({ open, onJoin, onSkip }: CommunityInviteMo
             target="_blank"
             rel="noreferrer noopener"
             onClick={onJoin}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-forest-700 bg-forest-700 px-4 text-sm font-medium text-white transition-colors hover:bg-forest-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-700"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-brand-700 bg-brand-700 px-4 text-sm font-medium text-on-brand transition-colors hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-600"
           >
             <IconWhatsApp width={16} height={16} />
             Join WhatsApp Community

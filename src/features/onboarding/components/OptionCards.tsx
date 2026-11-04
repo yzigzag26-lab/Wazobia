@@ -55,7 +55,7 @@ export function OptionCards<T extends string>({
                 'group relative flex cursor-pointer gap-3 rounded-[var(--radius-md)] border p-3.5',
                 'transition-colors duration-100',
                 selected
-                  ? 'border-forest-700 bg-forest-50'
+                  ? 'border-forest-600 bg-forest-50'
                   : 'border-paper-300 bg-white hover:border-ink-400 hover:bg-paper-50',
               )}
             >
@@ -72,11 +72,11 @@ export function OptionCards<T extends string>({
                 className={cn(
                   'mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-full border-2 transition-colors',
                   selected
-                    ? 'border-forest-700 bg-forest-700 text-white'
+                    ? 'border-brand-700 bg-brand-700 text-on-brand'
                     : 'border-paper-400 bg-white group-hover:border-ink-400',
                 )}
               >
-                {selected ? <span className="size-1.5 rounded-full bg-white" /> : null}
+                {selected ? <span className="size-1.5 rounded-full bg-on-brand" /> : null}
               </span>
 
               <span className="min-w-0 flex-1">
@@ -158,7 +158,7 @@ export function CheckboxGrid<T extends string>({
                 'flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border px-3 py-2.5',
                 'transition-colors duration-100',
                 checked
-                  ? 'border-forest-700 bg-forest-50'
+                  ? 'border-forest-600 bg-forest-50'
                   : 'border-paper-300 bg-white hover:border-ink-400 hover:bg-paper-50',
               )}
             >
@@ -168,10 +168,10 @@ export function CheckboxGrid<T extends string>({
                 onChange={() => onToggle(option.id)}
                 className={cn(
                   'mt-0.5 size-4 shrink-0 cursor-pointer appearance-none rounded-[3px] border bg-white',
-                  'checked:border-forest-700 checked:bg-forest-700',
+                  'checked:border-brand-700 checked:bg-brand-700',
                   'checked:bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 12%27%3E%3Cpath d=%27M2.2 6.2 4.6 8.6 9.8 3.4%27 fill=%27none%27 stroke=%27white%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E")]',
                   'bg-center bg-no-repeat',
-                  checked ? 'border-forest-700' : 'border-paper-400',
+                  checked ? 'border-brand-700' : 'border-paper-400',
                 )}
               />
               <span className="min-w-0 flex-1">

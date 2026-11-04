@@ -83,10 +83,16 @@ The most recent full audit — what was verified, what was fixed, what is still 
 - **Read Aloud** — browser speech synthesis with a language-voice check. It refuses to speak
   Yorùbá, Hausa or Igbo with an English voice and explains why instead; see
   [`docs/product/read-aloud.md`](docs/product/read-aloud.md).
-- **Theme** — light, dark or follow-the-device, changeable only in Profile → Settings →
-  Appearance. Driven entirely by CSS custom properties, with the palette contrast-checked in both
-  themes (`src/config/themeContrast.test.ts`) and every token verified to have a dark value
+- **Theme** — **light by default**, with dark and follow-the-device selectable in Profile → Settings
+  → Appearance. An unset preference never resolves from the OS, so a dark-mode device does not
+  silently get a dark app. Driven entirely by CSS custom properties, and the palette is
+  contrast-checked in *both* themes (`src/config/themeContrast.test.ts` reads the real stylesheet and
+  asserts 195 foreground/background pairs), with every token verified to have a dark value
   (`src/config/themeTokens.test.ts`).
+- **Two green ramps, on purpose** — `forest-*` is text/icon colour and inverts with the theme;
+  `brand-*` is the ground under white type and stays dark in both. One ramp cannot do both jobs, and
+  a guard fails if a class string tries. `white` is the raised surface (near-black in dark mode) while
+  `on-brand` is literal white. See `docs/design/brand.md`.
 - **Language configuration** — `src/config/languages.ts` is the only place a language is defined.
   `yo`, `ha`, `ig` are first-class; `en` is the bridge. Adding a language is a data change.
 - **Design tokens** — forest, gold, lime and ember on warm paper, derived from the official logo

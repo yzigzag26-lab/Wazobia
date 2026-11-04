@@ -36,36 +36,69 @@
    Mirrored in src/config/tokens.ts for documentation and non-CSS consumers.
    ========================================================================== */
 @theme {
-  /* `bg-white` is used for raised surfaces throughout. It is re-pointed at a
-     theme token so dark mode can lighten it without touching 30 call sites.
-     `--color-white` itself stays literal for the six deliberate
-     `text-white`-on-forest-button cases. */
+  /* ------------------------------------------------------------------------
+     TWO RAMPS, TWO JOBS — the core of the dark-mode legibility fix.
+
+     The forest ramp was carrying two opposite roles at once:
+
+       1. AS A GROUND. Primary buttons, the HowItWorks section, the auth brand
+          panel, progress bars. These carry white label text, so they must stay
+          DARK.
+
+       2. AS TEXT/ICON COLOUR. Card labels, link labels, stat figures — 80+
+          call sites. These must be dark in light mode but INVERT to bright
+          green in dark mode.
+
+     One value cannot do both. Tuned as a ground, the labels measured 1.36:1 on
+     a dark card; tuned as text, the white button label measured 2.64:1. So the
+     roles are separate ramps:
+
+       `forest-*`        — text and icon colour. Inverts in dark mode.
+       `brand-*`         — ground under white type. Dark in both themes.
+
+     `--color-white` is the raised card surface and flips to near black in dark
+     mode; `--color-on-brand` is literal white and never changes. Type on a
+     brand ground therefore uses `on-brand`, never `white`.
+
+     Same split for `ember`: `ember-700` is error TEXT (lightened in dark),
+     `ember-800` is the danger BUTTON ground (dark in both, white label).
+
+     `themeTokens.test.ts` fails if either role leaks into the other.
+     ------------------------------------------------------------------------ */
   --color-white: #ffffff;
   --color-surface: #ffffff;
+  --color-on-brand: #ffffff;
 
   --color-paper-50: #fbfaf6;
   --color-paper-100: #f5f2ea;
   --color-paper-200: #ebe6da;
   --color-paper-300: #dbd4c4;
-  --color-paper-400: #bcb3a0;
+  --color-paper-400: #8a8271;
 
   --color-ink-900: #0d1710;
   --color-ink-800: #14201a;
   --color-ink-700: #26332c;
   --color-ink-600: #41504a;
-  --color-ink-500: #5f6d66;
-  --color-ink-300: #a9b2ac;
-  --color-ink-400: #8b968f;
+  --color-ink-500: #5a6861;
+  --color-ink-300: #79827b;
+  --color-ink-400: #5f6a63;
 
+  /* Text/icon ramp — inverts in dark mode. */
   --color-forest-50: #eef6f0;
   --color-forest-100: #d8ecdd;
-  --color-forest-300: #7fb990;
-  --color-forest-400: #4fa06a;
-  --color-forest-500: #1c8a42;
+  --color-forest-300: #418854;
+  --color-forest-400: #3a8352;
+  --color-forest-500: #177a3a;
   --color-forest-600: #12622f;
   --color-forest-700: #0b4420;
   --color-forest-800: #073116;
   --color-forest-900: #04240f;
+
+  /* Ground ramp — stays dark in both themes, always carries white type. */
+  --color-brand-600: #12622f;
+  --color-brand-700: #0b4420;
+  --color-brand-800: #073116;
+  --color-brand-900: #04240f;
 
   --color-lime-100: #eef7d9;
   --color-lime-400: #8ed13a;
@@ -75,12 +108,13 @@
   --color-gold-300: #f8dc74;
   --color-gold-500: #f5c518;
   --color-gold-600: #d9a908;
-  --color-gold-700: #a8810a;
+  --color-gold-700: #7d6007;
 
   --color-ember-100: #fdeae0;
   --color-ember-500: #f2500f;
   --color-ember-600: #cf3d05;
   --color-ember-700: #a52f04;
+  --color-ember-800: #8a2603;
 
   --font-sans: 'Wazobia Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-serif: 'Wazobia Serif', 'Wazobia Sans', ui-serif, Georgia, serif;
@@ -110,16 +144,15 @@
    ~450 class strings across 60 files.
 
    Consequences, all deliberate:
-   - `--color-white` becomes the raised *surface* in dark mode. It is pinned
-     back to literal white in `.on-brand` for controls that sit on forest.
-   - The forest ramp inverts in usage: forest-700 is a *background* for primary
-     buttons, so it is lightened so white label text still passes AA on it.
-     Forest-800/900 remain the "on gold" text colours and stay dark.
-   - Gold and lime stay surface-only. They are not lightened because they are
-     already high-luminance; their foreground (forest-800/900) stays dark.
+   - `--color-white` is `bg-white`, the raised *surface*, so it becomes near
+     black. Literal white type uses `--color-on-brand`, which never changes.
+   - `forest-*` is the TEXT ramp and inverts. `brand-*` is the GROUND ramp and
+     stays dark. See the comment above `@theme` for why one ramp cannot do both.
+   - Gold and lime stay surface-only. Their foreground is the forest text ramp,
+     which is bright here, so it passes.
 
-   Contrast targets (all >= 4.5:1 for body text) are asserted in
-   `src/config/themeContrast.test.ts`, so this table cannot silently drift.
+   Every foreground/background pair the components actually use is asserted in
+   `src/config/themeContrast.test.ts` — for both themes, not just dark.
    ========================================================================== */
 @layer base {
   :root[data-theme='dark'] {
@@ -130,41 +163,49 @@
     --color-paper-100: #111815;
     --color-paper-200: #1a231e;
     --color-paper-300: #2a352f;
-    --color-paper-400: #3d4a43;
+    --color-paper-400: #5a6a60;
 
+    /* The raised surface flips; literal white does not. */
     --color-white: #131c18;
     --color-surface: #131c18;
+    --color-on-brand: #ffffff;
 
     /* Text ramps invert: 900 = strongest on dark ground */
     --color-ink-900: #f2f5f3;
     --color-ink-800: #e2e8e4;
     --color-ink-700: #cdd6d0;
     --color-ink-600: #aebbb3;
-    --color-ink-500: #92a099;
-    --color-ink-300: #61706a;
-    --color-ink-400: #77867e;
+    --color-ink-500: #9aa8a0;
+    --color-ink-300: #84938b;
+    --color-ink-400: #8b9a92;
 
-    /* Forest: 700 is a button background here, so it must be light enough
-       for white text; 800/900 stay dark because they sit on gold/lime. */
+    /* Forest as TEXT and ICON colour: every step is light, so labels that were
+       `text-forest-800` in light mode stay legible instead of vanishing. */
     --color-forest-50: #12251a;
     --color-forest-100: #17331f;
-    --color-forest-300: #2f6b45;
+    --color-forest-300: #3a8755;
     --color-forest-400: #3d8a58;
     --color-forest-500: #35a35c;
     --color-forest-600: #46b76d;
-    --color-forest-700: #126b37;
-    --color-forest-800: #0a3a1e;
-    --color-forest-900: #04240f;
+    --color-forest-700: #74d495;
+    --color-forest-800: #93e0ac;
+    --color-forest-900: #b3ebc4;
 
-    /* Ember: ember-600 is the destructive *button* background, so it is
-       darkened until white label text reaches 4.51:1. ember-500/700 are the
-       text tones and are lightened instead. */
+    /* Forest as GROUND under white type: dark in both themes. */
+    --color-brand-600: #1d8749;
+    --color-brand-700: #1b7c46;
+    --color-brand-800: #1b8046;
+    --color-brand-900: #10432a;
+
+    /* Ember: ember-800 is the destructive *button* ground and stays dark so its
+       white label passes. ember-700 is the error text tone and lightens. */
     --color-ember-100: #34180e;
     --color-ember-500: #ff6a33;
-    --color-ember-600: #d44508;
+    --color-ember-600: #c73f04;
     --color-ember-700: #ff8256;
+    --color-ember-800: #b83b04;
 
-    /* Gold and lime are unchanged: they are surfaces and accents only. */
+    /* Gold and lime stay as accent surfaces; their text comes from forest-*. */
     --color-gold-100: #2a2209;
     --color-gold-300: #6b5510;
     --color-gold-500: #f5c518;
@@ -179,16 +220,19 @@
     --wz-shadow-color: rgb(0 0 0 / 0.55);
   }
 
-  /* Controls that sit on a forest/gold ground keep literal white type. */
+  /* `on-brand` used to pin `--color-white` back to literal white because that
+     is the token `text-white` compiled to. It no longer is: white type on a
+     brand ground is `text-on-brand`, which never changes. Pinning it here would
+     instead turn nested `bg-white` cards white again inside a brand panel, so
+     the override only guarantees literal white for any leftover `text-white`. */
   :root[data-theme='dark'] .on-brand,
   :root[data-theme='dark'] .on-brand * {
-    --color-white: #ffffff;
-    color: #ffffff;
+    --color-on-brand: #ffffff;
   }
 
   /* The selection highlight needs inverting to stay legible. */
   :root[data-theme='dark'] ::selection {
-    background-color: var(--color-forest-600);
+    background-color: var(--color-brand-700);
     color: #ffffff;
   }
 }

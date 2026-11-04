@@ -42,21 +42,47 @@ every variant preserves the source aspect ratio.
 
 The logo is deep forest green, gold and ember orange on white. Those three drive the interface.
 
-| Token | Hex | Role | Contrast |
+There are **two green ramps, and they do opposite jobs**. This is the single most important rule in
+the palette, because collapsing them back into one ramp is what made dark mode unreadable:
+
+| Ramp | Job | Light | Dark |
 |---|---|---|---|
-| `forest-900` | `#04240f` | Headings, dark panels | 15.9:1 on paper |
-| `forest-800` | `#073116` | Primary button, brand | 13.8:1 on paper |
-| `forest-700` | `#0b4420` | Links, primary action | 10.8:1 on paper |
-| `forest-600` | `#12622f` | Focus ring | 7.2:1 on paper |
-| `gold-500` | `#f5c518` | Highlight surface, emphasis | **1.56:1 — never text** |
-| `ember-600` | `#cf3d05` | Error, destructive | 4.65:1 on paper |
-| `lime-400` | `#8ed13a` | Small accent dot only | **1.77:1 — never text** |
-| `paper-50` | `#fbfaf6` | Page surface | — |
+| `forest-*` | **Text and icon colour.** Inverts with the theme. | dark green | bright green |
+| `brand-*` | **Ground under white type.** Stays dark in both themes. | dark green | dark green |
+
+A single ramp cannot do both: a value dark enough to carry white label text puts `text-forest-*`
+labels at 1.4:1 on a dark page, and a value light enough to be a label turns the primary button into
+white-on-mint. `themeTokens.test.ts` fails if a class string paints white type on a `forest-*`
+ground, or uses `brand-*` as a text colour.
+
+Likewise `white` is the raised **surface** (it becomes near-black in dark mode) while `on-brand` is
+literal white type and never changes. `text-white` therefore must not be used — it compiles to the
+surface token.
+
+| Token | Light hex | Dark hex | Role |
+|---|---|---|---|
+| `forest-900` | `#04240f` | `#b3ebc4` | Strongest text step |
+| `forest-800` | `#073116` | `#93e0ac` | Card labels, stat figures |
+| `forest-700` | `#0b4420` | `#74d495` | Links, active nav |
+| `forest-600` | `#12622f` | `#46b76d` | Focus ring, success text |
+| `brand-700` | `#0b4420` | `#1b7c46` | Primary button ground |
+| `brand-900` | `#04240f` | `#10432a` | Dark panels (HowItWorks, auth) |
+| `on-brand` | `#ffffff` | `#ffffff` | Literal white type / dots |
+| `gold-500` | `#f5c518` | `#f5c518` | Highlight surface, emphasis |
+| `ember-600` | `#cf3d05` | `#c73f04` | Error border, destructive ground |
+| `ember-700` | `#a52f04` | `#ff8256` | Error text |
+| `paper-50` | `#fbfaf6` | `#0b100d` | Page surface |
+| `white` | `#ffffff` | `#131c18` | Raised card surface |
 
 Discipline applied throughout:
 
-- **Gold and lime are surfaces and accents, never body text.** Both fail AA for text on paper, so
-  they only ever sit under `forest-900` text (10.2:1 and 9.0:1 respectively).
+- **Gold and lime are surfaces and accents, never body text.** `gold-500` is 1.56:1 on paper and
+  `lime-400` is 1.77:1, so they only ever sit under `forest-*` text, which is dark in light mode and
+  bright in dark mode.
+- **Every foreground/background pair the components actually use is measured in both themes**, not
+  just the tokens someone remembered to list: `src/config/themeContrast.test.ts` reads the real
+  stylesheet and asserts 195 pairs. Translucent white (`text-on-brand/60`…`/85`) is alpha-composited
+  before measuring, because Tailwind compiles it to a literal hex.
 - One accent carries action (forest). No purple, no gradient washes, no glass.
 - Gradients are limited to two radial brand glows and the auth panel ambience.
 

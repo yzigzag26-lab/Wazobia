@@ -143,7 +143,7 @@ export default function CoursePage() {
                         className={cn(
                           'mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border text-[0.625rem]',
                           done
-                            ? 'border-forest-600 bg-forest-600 text-white'
+                            ? 'border-brand-600 bg-brand-600 text-on-brand'
                             : 'border-paper-300 bg-paper-100 text-ink-400',
                         )}
                       >

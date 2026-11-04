@@ -43,7 +43,7 @@ export function MarketingLayout() {
     <div className="min-h-dvh bg-paper-50">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-[var(--radius-sm)] focus:bg-forest-900 focus:px-4 focus:py-2 focus:text-sm focus:text-paper-50"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-[var(--radius-sm)] focus:bg-brand-900 focus:px-4 focus:py-2 focus:text-sm focus:text-on-brand"
       >
         Skip to content
       </a>
@@ -82,8 +82,8 @@ export function MarketingLayout() {
               to={isGuest ? '/app' : '/signup'}
               className={cn(
                 'inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] px-3.5',
-                'bg-forest-800 text-[0.875rem] font-medium text-white',
-                'transition-colors hover:bg-forest-900',
+                'bg-brand-800 text-[0.875rem] font-medium text-on-brand',
+                'transition-colors hover:bg-brand-900',
               )}
             >
               {isGuest ? 'Open WAZOBIA' : 'Create account'}

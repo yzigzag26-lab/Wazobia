@@ -43,7 +43,7 @@ export function Hero() {
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
                 to="/app"
-                className="inline-flex h-11 items-center gap-2 rounded-[var(--radius-button)] bg-forest-800 px-5 text-[0.9375rem] font-medium text-white transition-colors hover:bg-forest-900"
+                className="inline-flex h-11 items-center gap-2 rounded-[var(--radius-button)] bg-brand-800 px-5 text-[0.9375rem] font-medium text-on-brand transition-colors hover:bg-brand-900"
               >
                 Explore WAZOBIA
                 <IconArrowRight width={16} height={16} />

@@ -34,7 +34,7 @@ export function PillarCard({ pillar, className }: PillarCardProps) {
         'group relative flex h-full flex-col rounded-[var(--radius-lg)] border border-paper-300 bg-white p-5',
         'transition-[border-color,background-color,box-shadow] duration-150',
         'hover:border-forest-400 hover:shadow-[0_1px_0_0_var(--color-paper-300)]',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-700',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-600',
         className,
       )}
     >
