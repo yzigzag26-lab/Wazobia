@@ -22,11 +22,21 @@ export function AppShell() {
   const [collapsed, setCollapsed] = usePersistentState('sidebar-collapsed', false, isBoolean)
   const location = useLocation()
 
-  /** Move focus to the main landmark on route change for screen-reader users. */
+  /**
+   * Move focus to the main landmark on route change for screen-reader users.
+   *
+   * `location.pathname` is *required* here even though the effect body does not
+   * read it: it is the trigger. The shell is not remounted between
+   * destinations, so nothing else would re-run this effect and a screen-reader
+   * user would be left with focus on a navigation item that no longer matches
+   * the page. The rule cannot see that intent, so it is suppressed with reason.
+   */
+  // oxlint-disable react/exhaustive-effect-dependencies
   useEffect(() => {
     const main = document.getElementById('main-content')
     if (main) main.focus({ preventScroll: true })
   }, [location.pathname])
+  // oxlint-enable react/exhaustive-effect-dependencies
 
   useEffect(() => {
     const destination = findDestinationByPath(location.pathname)

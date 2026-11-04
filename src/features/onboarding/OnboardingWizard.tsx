@@ -15,6 +15,16 @@ import { isQuestionAnswered, validateQuestion } from './validation'
 type Phase = 'questionnaire' | 'complete'
 
 /**
+ * Module scope, not render scope: the helper captures nothing, so defining it
+ * inside the component would recreate it on every render for no benefit.
+ * It is named for what it does — it scrolls the viewport back to the question,
+ * it does not move focus (`useEffect` in this file owns focus).
+ */
+function scrollToTop(): void {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+/**
  * One-question-per-page onboarding.
  *
  * Each screen shows a single question, which keeps the page calm on a phone and
@@ -80,10 +90,6 @@ export function OnboardingWizard() {
 
   /* ----------------------------------------------------------- navigation */
 
-  function focusHeading() {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
   function goNext() {
     const error = validateQuestion(question.id, profile)
     if (error) {
@@ -95,13 +101,13 @@ export function OnboardingWizard() {
       return
     }
     setIndex((current) => Math.min(current + 1, TOTAL_QUESTIONS - 1))
-    focusHeading()
+    scrollToTop()
   }
 
   function goPrevious() {
     setErrors({})
     setIndex((current) => Math.max(current - 1, 0))
-    focusHeading()
+    scrollToTop()
   }
 
   async function finish() {
@@ -110,7 +116,7 @@ export function OnboardingWizard() {
       const result = await onboardingService.submit(profile)
       setStoredLocally(result.storedLocally)
       setPhase('complete')
-      focusHeading()
+      scrollToTop()
     } finally {
       setSubmitting(false)
     }

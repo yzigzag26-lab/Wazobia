@@ -1,3 +1,14 @@
+// oxlint-disable react/only-export-components
+/*
+ * This module exports route *descriptions* (`routes`) and the router instance.
+ * The only components it can export are lazy import wrappers, and Fast Refresh
+ * does not track those — so the rule protects nothing here while failing on
+ * every entry. Exempted per file rather than by weakening the rule globally,
+ * because the rule is load-bearing everywhere else (see HANDOVER.md §6).
+ * The directive above is a line comment on purpose: oxlint only honours
+ * disable directives written that way.
+ */
+
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, type RouteObject } from 'react-router-dom'
 import { AppShell } from '@/layouts/AppShell'
@@ -11,7 +22,7 @@ import RouteErrorPage from '@/pages/RouteErrorPage'
  *   /            public marketing landing page
  *   /signup      registration (frontend-only, no backend call)
  *   /login       login (frontend-only, no backend call)
- *   /onboarding  three-step questionnaire (skippable, local only)
+ *   /onboarding  ten-question questionnaire, one per page (skippable, local only)
  *   /app         application entry — works immediately for guests
  *   /app/*       the eight destinations
  *

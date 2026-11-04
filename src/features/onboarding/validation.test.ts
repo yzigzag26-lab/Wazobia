@@ -79,7 +79,7 @@ describe('question registry', () => {
     expect(steps.filter((s) => s === 2)).toHaveLength(3)
     expect(steps.filter((s) => s === 3)).toHaveLength(3)
     // Groups must be contiguous: never step 3 before step 2.
-    expect(steps).toEqual([...steps].sort((a, b) => a - b))
+    expect(steps).toEqual(steps.toSorted((a, b) => a - b))
   })
 
   it('addresses every question with a unique id and a title', () => {

@@ -1,0 +1,68 @@
+{
+  // WAZOBIA lint configuration — see `docs/architecture/engineering-standards.md`.
+  //
+  // Rules marked "owner constraint" enforce a decision recorded in HANDOVER.md §5.
+  // They are errors, not warnings, so a regression fails CI instead of drifting.
+  //
+  // JSONC comments are supported here and deliberately used for rationale.
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "unicorn", "jsx-a11y", "oxc"],
+  "env": {
+    "browser": true,
+    "es2024": true
+  },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "ignorePatterns": ["dist/**", "coverage/**", "node_modules/**"],
+  "rules": {
+    // React 19 uses the automatic JSX runtime; `React` is never in scope by design.
+    "react/react-in-jsx-scope": "off",
+
+    // Owner constraint: a module may export components only, or Fast Refresh
+    // breaks. This is why `stores/*Context.ts` is split from `stores/*.tsx`.
+    "react/only-export-components": "error",
+    "react/jsx-key": "error",
+    "react-hooks/rules-of-hooks": "error",
+    // A wrong dependency list is a real defect: a stale `useEffect` silently
+    // stops running. Keep it visible.
+    "react-hooks/exhaustive-deps": "error",
+
+    // Owner constraint: non-null assertions are treated as defects;
+    // `questionAt()` throws instead of using `QUESTIONS[i]!`.
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-explicit-any": "error",
+
+    // No debug output ships to users. The one intentional diagnostic in
+    // `config/env.ts` carries a scoped disable and its reason.
+    "no-console": "error",
+
+    "eqeqeq": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-script-url": "error",
+    "no-debugger": "error"
+  },
+  "overrides": [
+    {
+      // Tests may use `any` and non-null assertions to build malformed fixtures
+      // on purpose — that is the point of the negative cases.
+      "files": ["src/**/*.{test,spec}.{ts,tsx}", "src/test/**"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "typescript/no-non-null-assertion": "off"
+      }
+    },
+    {
+      // Build tooling runs in Node and legitimately logs.
+      "files": ["*.config.{ts,js}", "vite.config.ts"],
+      "env": { "node": true },
+      "rules": { "no-console": "off" }
+    }
+  ]
+}

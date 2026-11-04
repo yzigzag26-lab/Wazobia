@@ -131,8 +131,7 @@ export function QuestionControl({ questionId, profile, error, update, toggleInAr
             badgeFor={unavailableBadge}
           />
           {unavailable > 0 ? (
-            <p
-              role="status"
+            <output
               className="rounded-[var(--radius-sm)] border border-gold-300 bg-gold-100 px-3.5 py-2.5 text-[0.75rem] leading-5 text-gold-700"
             >
               {unavailable === 1
@@ -140,7 +139,7 @@ export function QuestionControl({ questionId, profile, error, update, toggleInAr
                 : `${unavailable} of your choices are not available on WAZOBIA yet.`}{' '}
               Your interest is recorded so the platform can prioritise it, but no lessons exist for
               those languages today.
-            </p>
+            </output>
           ) : null}
         </div>
       )

@@ -85,6 +85,11 @@
   --spacing-sidebar-collapsed: 4.25rem;
   --spacing-mobile-nav: 3.75rem;
   --spacing-topbar: 3.25rem;
+
+  /* Shared horizontal rhythm for the app content column. `tokens.ts` and this
+     file are meant to mirror each other; this one was documented there but
+     never emitted here, so `var(--gutter)` silently fell back to 1rem. */
+  --gutter: clamp(1rem, 4vw, 2.5rem);
 }
 
 /* ==========================================================================

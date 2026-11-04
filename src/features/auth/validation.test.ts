@@ -31,8 +31,8 @@ describe('sign-up validation', () => {
       confirmPassword: '',
       acceptedTerms: false,
     })
-    expect(Object.keys(errors).sort()).toEqual(
-      ['acceptedTerms', 'confirmPassword', 'email', 'fullName', 'password', 'username'].sort(),
+    expect(Object.keys(errors).toSorted()).toEqual(
+      ['acceptedTerms', 'confirmPassword', 'email', 'fullName', 'password', 'username'].toSorted(),
     )
   })
 
@@ -87,7 +87,7 @@ describe('login validation', () => {
   })
 
   it('requires both fields', () => {
-    expect(Object.keys(validateLogin({ identifier: '', password: '' })).sort()).toEqual([
+    expect(Object.keys(validateLogin({ identifier: '', password: '' })).toSorted()).toEqual([
       'identifier',
       'password',
     ])

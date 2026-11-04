@@ -21,6 +21,8 @@ Yorùbá · Hausa · Igbo, with English as a bridge language.
 | Accessible primitives | Radix Dialog / Dropdown / Tooltip — behaviour only, never styled kits |
 | Auth client | Supabase JS (browser anon key only) |
 | Tests | Vitest + Testing Library + jsdom |
+| Lint | oxlint (`npm run lint` — 0 warnings, 0 errors) |
+| CI | GitHub Actions: typecheck → lint → test → build, plus a client-bundle secret scan |
 
 ---
 
@@ -36,9 +38,15 @@ npm run dev                    # http://localhost:5173
 |---|---|
 | `npm run dev` | Dev server |
 | `npm run verify` | Type-check → lint → tests → production build (run before every commit) |
+| `npm run verify:ci` | The same, starting from `npm ci` — reproduces CI locally |
 | `npm run typecheck` | `tsc -b --noEmit` |
 | `npm run lint` | oxlint |
 | `npm run test` | Vitest (single run) |
+
+Tooling rules, the lint configuration and the CI gate are documented in
+[`docs/architecture/engineering-standards.md`](docs/architecture/engineering-standards.md).
+The most recent full audit — what was verified, what was fixed, what is still open — is
+[`docs/architecture/repository-inspection-2026-11-04.md`](docs/architecture/repository-inspection-2026-11-04.md).
 
 ---
 
@@ -61,8 +69,9 @@ npm run dev                    # http://localhost:5173
   (`available` / `in development` / `planned`) and listing the backend contracts it needs.
 - **Language configuration** — `src/config/languages.ts` is the only place a language is defined.
   `yo`, `ha`, `ig` are first-class; `en` is the bridge. Adding a language is a data change.
-- **Design tokens** — laterite, indigo, palm and clay on warm paper. No gradients, no glass, no
-  purple, no glow.
+- **Design tokens** — forest, gold, lime and ember on warm paper, derived from the official logo
+  (`src/index.css` + `src/config/tokens.ts`, documented in `docs/design/brand.md`). No gradients,
+  no glass, no purple, no glow. Gold and lime are surface-only and never text.
 - **Typography with verified Unicode** — see `docs/design/typography.md`. `ẹ ọ ị ụ ṣ ɓ ɗ ƙ` and
   Yorùbá tone marks render from a font proven to contain them.
 - **Typed API boundary** — one `apiRequest` client, the blueprint's error envelope, a closed error
@@ -74,8 +83,9 @@ npm run dev                    # http://localhost:5173
   `docs/architecture/guest-access.md`.
 - **Auth forms** — accessible labelled fields, live password rules, mismatch and required-field
   validation, honest "not available yet" outcomes.
-- **Onboarding questionnaire** — three steps, typed `UserOnboardingProfile` model, skippable, with an
-  isolated service seam for future `POST /api/v1/onboarding`.
+- **Onboarding questionnaire** — ten questions, one per page, typed `UserOnboardingProfile` model,
+  skippable, with an isolated service seam for future `POST /api/v1/onboarding`. Answers are kept in
+  `localStorage` only; nothing is transmitted and the UI never implies otherwise.
 - **Configurable catalogues** — countries and onboarding languages are data files, not hard-coded
   options.
 
@@ -98,17 +108,19 @@ src/
 │   └── ui/           Button, Badge, Spinner, StateMessage, PageHeader, icons
 ├── config/           env, tokens, brand, languages, destinations (+ registry)
 ├── features/         ai · translate · learn · speak · dictionary · community · preserve · research
-├── hooks/            useMediaQuery, usePersistentState
-├── layouts/          AppShell, MobileHeader
+├── hooks/            useMediaQuery, usePersistentState, useSession, useLanguagePreference
+├── layouts/          AppShell, MarketingLayout, MobileHeader
 ├── lib/              supabase (browser client), queryClient
-├── pages/            LandingPage, NotFoundPage, RouteErrorPage
-├── services/         client.ts (the only fetch boundary), api.ts, contracts/
-├── stores/           languagePreference
+├── pages/            LandingPage, AppEntryPage, SignUpPage, LoginPage, OnboardingPage,
+│                     NotFoundPage, RouteErrorPage
+├── services/         client.ts (the only fetch boundary), api.ts, guestSession, onboarding, contracts/
+├── stores/           session, languagePreference  (*Context.ts + *.tsx + hooks/, kept split
+│                     so each file exports components only — see HANDOVER.md §6)
 ├── test/             setup, unicode guards
-├── types/            shared types
+├── types/            shared types (onboarding)
 └── utils/            cn
 api/                  Vercel server functions — placeholder, owned by the backend
-docs/                 api/ · design/
+docs/                 api/ · architecture/ · design/ · product/
 ```
 
 Feature code never calls `fetch` directly and never hard-codes a language.
