@@ -1,6 +1,18 @@
 # WAZOBIA — Frontend ↔ Backend API Contract
 
-**Status:** contracts proposed by the frontend; **not implemented server-side yet.**
+**Status:** §2.1 implemented and serving from the database. Every other endpoint is
+contracted, and its schema exists, but no handler is written yet — those surfaces
+still render the frontend's honest *not connected* state.
+
+| Endpoint | Handler | Schema |
+|---|---|---|
+| §2.1 `GET /languages` | ✅ `api/v1/languages.ts` | ✅ `languages`, `dialects` |
+| §2.2 `GET /users/me` | — | ✅ `profiles`, `user_roles` |
+| §2.3 `POST /ai/chat` | — | ✅ `conversations`, `conversation_messages` |
+| §2.4 `POST /translate` | — | n/a (stateless) |
+| §2.5 `GET /dictionary/search` | — | ✅ `dictionary_entries` |
+| §2.6 `GET /courses`, `/lessons/:id`, `POST /progress` | — | ✅ `courses`, `lessons`, `lesson_sentences`, `lesson_progress` |
+
 **Base path:** `/api/v1`
 **Transport:** HTTPS, JSON (`application/json`). Media uploads use signed storage targets.
 **Source of truth for types:** `src/services/contracts/`
@@ -96,6 +108,16 @@ catalogue** (`src/config/languages.ts`) and to populate dialect selectors.
 `Yoruba`. Tone marks are data, not presentation. The frontend will not add or repair diacritics.
 
 Auth: not required. Cacheable (`Cache-Control: public, max-age=3600`).
+
+**Implemented.** `api/v1/languages.ts` → `api/_lib/languages/handler.ts`. Reads the
+`languages_public` view over PostgREST using the **anon** key, not the service-role key:
+this endpoint serves public catalogue data, so it deliberately does not hold a credential
+that bypasses Row Level Security. Disabled languages are excluded by the view itself, not
+by the caller.
+
+Error behaviour: `INTERNAL_ERROR` (500, `no-store`) if the database is unreachable or the
+deployment is missing configuration. It never returns an empty list to signal failure —
+an empty list would render as "no languages available", which is a lie.
 
 ---
 

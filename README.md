@@ -5,7 +5,12 @@ Yorùbá · Hausa · Igbo, with English as a bridge language.
 
 > **Phase 1 of N — Public entry, authentication UI and guest access.**
 > Landing page, sign-up, login, guest sessions and the application shell are complete.
-> **No backend exists yet.** Every data surface states that honestly; nothing is simulated.
+> **The backend is now real and partially live.** `GET /api/v1/languages` serves the launch
+> catalogue from Postgres, and the database schema for every contracted endpoint exists with Row
+> Level Security. One caveat worth stating plainly: that endpoint is **not yet consumed by the UI** —
+> `languageService` exists and is tested, but no component calls it, so every screen still reads the
+> hardcoded `src/config/languages.ts`. Wiring it up is the next step. Endpoints without a handler
+> still state that honestly — nothing is simulated.
 
 ---
 
@@ -64,9 +69,9 @@ The most recent full audit — what was verified, what was fixed, what is still 
 | `/app/learn/quizzes` | Quiz bank | 9 quizzes; every answer explained |
 | `/app/learn/proverbs` | Proverb cards | 72 proverbs (24 per language), filterable by theme |
 | `/app/learn/stories` | African stories | 12 stories with translation, vocabulary and context |
-| `/app/dictionary` | Dictionary | Awaiting backend |
-| `/app/ai` | WAZOBIA AI | Awaiting backend |
-| `/app/translate` | Translate | Awaiting backend |
+| `/app/dictionary` | Dictionary | Schema ready; handler not written |
+| `/app/ai` | WAZOBIA AI | Schema ready; needs a provider |
+| `/app/translate` | Translate | Needs a provider |
 | `/app/profile` | Profile | Details, language, learning preferences |
 | `/app/profile/settings/*` | Settings | Appearance, security, preferences, notifications, privacy |
 
@@ -145,7 +150,8 @@ src/
 ├── test/             setup, unicode guards
 ├── types/            shared types (onboarding)
 └── utils/            cn
-api/                  Vercel server functions — placeholder, owned by the backend
+api/                  Vercel server functions (_lib/ testable, v1/ adapters)
+supabase/             migrations — schema, RLS policies, launch seed
 docs/                 api/ · architecture/ · design/ · product/
 ```
 

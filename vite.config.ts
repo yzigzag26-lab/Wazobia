@@ -55,7 +55,14 @@ export default defineConfig(({ mode }) => {
       globals: true,
       setupFiles: ['./src/test/setup.ts'],
       css: false,
-      include: ['src/**/*.{test,spec}.{ts,tsx}'],
+      /*
+       * `api/**` is included so the server functions are actually tested. They
+       * live outside `src/` and, until this line existed, outside every
+       * compilation unit — meaning server behaviour could be wrong while the
+       * whole suite stayed green. Server tests do not need jsdom, so each file
+       * that targets the API declares `@vitest-environment node` for itself.
+       */
+      include: ['src/**/*.{test,spec}.{ts,tsx}', 'api/**/*.{test,spec}.{ts,tsx}'],
     },
   }
 })
