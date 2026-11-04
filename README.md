@@ -1,0 +1,144 @@
+# WAZOBIA — Frontend
+
+The African Language Ecosystem. **Learn. Speak. Understand. Preserve.**
+Yorùbá · Hausa · Igbo, with English as a bridge language.
+
+> **Phase 1 of N — Public entry, authentication UI and guest access.**
+> Landing page, sign-up, login, guest sessions and the application shell are complete.
+> **No backend exists yet.** Every data surface states that honestly; nothing is simulated.
+
+---
+
+## Stack
+
+| Concern | Choice |
+|---|---|
+| Framework | React 19 + Vite 8 |
+| Language | TypeScript 7 — `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` |
+| Styling | Tailwind CSS 4 (CSS-first tokens in `src/index.css`) |
+| Routing | React Router 7 (code-split per destination) |
+| Server state | TanStack Query 5 (explicit retry policy, no fake fallbacks) |
+| Accessible primitives | Radix Dialog / Dropdown / Tooltip — behaviour only, never styled kits |
+| Auth client | Supabase JS (browser anon key only) |
+| Tests | Vitest + Testing Library + jsdom |
+
+---
+
+## Getting started
+
+```bash
+npm install
+cp .env.example .env.local     # optional until Supabase is provisioned
+npm run dev                    # http://localhost:5173
+```
+
+| Script | Purpose |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run verify` | Type-check → lint → tests → production build (run before every commit) |
+| `npm run typecheck` | `tsc -b --noEmit` |
+| `npm run lint` | oxlint |
+| `npm run test` | Vitest (single run) |
+
+---
+
+## Routes
+
+| Route | Page | Notes |
+|---|---|---|
+| `/` | Landing page | Hero, 8 modules, languages, how it works, preservation, CTA, footer |
+| `/signup` | Registration | Full validation, no backend call, honest notice on submit |
+| `/login` | Login | Validation, remember-me, recovery notice, no fake auth |
+| `/onboarding` | Ten-question questionnaire, one per page | Skippable, local only, full a11y — see `docs/product/onboarding.md` |
+| `/app` | Application entry | Works instantly for guests |
+| `/app/*` | The eight destinations | Structured, status-labelled |
+
+## What exists today
+
+- **Application shell** — persistent collapsible sidebar on desktop, four-item bottom bar plus a
+  *More* sheet on phone, one shared content column and token set. Same product, two affordances.
+- **Eight destinations** — all routed, all reachable, each stating its real status
+  (`available` / `in development` / `planned`) and listing the backend contracts it needs.
+- **Language configuration** — `src/config/languages.ts` is the only place a language is defined.
+  `yo`, `ha`, `ig` are first-class; `en` is the bridge. Adding a language is a data change.
+- **Design tokens** — laterite, indigo, palm and clay on warm paper. No gradients, no glass, no
+  purple, no glow.
+- **Typography with verified Unicode** — see `docs/design/typography.md`. `ẹ ọ ị ụ ṣ ɓ ɗ ƙ` and
+  Yorùbá tone marks render from a font proven to contain them.
+- **Typed API boundary** — one `apiRequest` client, the blueprint's error envelope, a closed error
+  code set, per-endpoint contracts in `src/services/contracts/`.
+- **Honest states** — loading, empty, error and *not connected* are all designed, not afterthoughts.
+- **Official brand identity** — the supplied logo in three cropped variants (lockup / mark / wordmark),
+  palette derived from it, single replacement point (`src/config/brand.ts`). See `docs/design/brand.md`.
+- **Guest access** — local guest session, visible indicator, account prompt and clean exit. See
+  `docs/architecture/guest-access.md`.
+- **Auth forms** — accessible labelled fields, live password rules, mismatch and required-field
+  validation, honest "not available yet" outcomes.
+- **Onboarding questionnaire** — three steps, typed `UserOnboardingProfile` model, skippable, with an
+  isolated service seam for future `POST /api/v1/onboarding`.
+- **Configurable catalogues** — countries and onboarding languages are data files, not hard-coded
+  options.
+
+## What does **not** exist yet — deliberately
+
+Real authentication, AI, translation, dictionary data, a Record button and community posting.
+Registration and login validate fully and then stop, because there is no auth service to call.
+Building the rest before the consent model, moderation tooling and validated voices exist would mean
+shipping inert or dishonest UI. See `docs/api/api-contract.md` for what the backend must provide.
+
+---
+
+## Structure
+
+```
+src/
+├── components/
+│   ├── brand/        WazobiaLogo — the single logo render point
+│   ├── layout/       Sidebar, MobileNav, DestinationCard, ModuleScaffold
+│   └── ui/           Button, Badge, Spinner, StateMessage, PageHeader, icons
+├── config/           env, tokens, brand, languages, destinations (+ registry)
+├── features/         ai · translate · learn · speak · dictionary · community · preserve · research
+├── hooks/            useMediaQuery, usePersistentState
+├── layouts/          AppShell, MobileHeader
+├── lib/              supabase (browser client), queryClient
+├── pages/            LandingPage, NotFoundPage, RouteErrorPage
+├── services/         client.ts (the only fetch boundary), api.ts, contracts/
+├── stores/           languagePreference
+├── test/             setup, unicode guards
+├── types/            shared types
+└── utils/            cn
+api/                  Vercel server functions — placeholder, owned by the backend
+docs/                 api/ · design/
+```
+
+Feature code never calls `fetch` directly and never hard-codes a language.
+
+---
+
+## Adding a destination later
+
+1. Add the record to `src/config/destinationRegistry.tsx` (one place).
+2. Add the route in `src/router.tsx`.
+3. Build the feature in `src/features/<name>/`.
+4. Flip `status` to `available` only when the contract responds.
+
+Navigation on both devices updates automatically.
+
+---
+
+## Security rules enforced here
+
+- Only `VITE_*` public values reach the browser. `GROQ_API_KEY`, `GEMINI_API_KEY`,
+  `SUPABASE_SERVICE_ROLE_KEY`, TTS/ASR keys are **server-side only** and absent from `.env.example`
+  values.
+- `src/config/env.ts` logs a loud error if a `service_role` JWT is ever supplied as the anon key.
+- The frontend never makes an authorization decision; it hides what the server has already refused.
+
+---
+
+## Next frontend task (needs approval)
+
+**Phase 1 — Public entry and language catalogue:** wire `GET /api/v1/languages` through TanStack
+Query, replace the static catalogue with live records, and build the landing page's language
+selection against real data — including the loading, empty and unavailable states that a real
+network needs.

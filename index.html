@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <title>WAZOBIA — The African Language Ecosystem</title>
+    <meta
+      name="description"
+      content="WAZOBIA is the African Language Ecosystem. Learn. Speak. Understand. Preserve. Yorùbá, Hausa and Igbo, with English as a bridge language."
+    />
+
+    <!-- Fonts are self-hosted and preloaded: they carry the Yorùbá tone marks and
+         Igbo dotted vowels, which many subsetted web fonts silently omit. -->
+    <link
+      rel="preload"
+      href="/fonts/wazobia-sans.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="preload" href="/fonts/wazobia-serif.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <meta name="theme-color" content="#fbf9f5" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      WAZOBIA needs JavaScript enabled to run. The platform is built as a React application.
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
