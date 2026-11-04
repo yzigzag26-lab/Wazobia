@@ -11,7 +11,7 @@ export interface PageHeaderProps {
 
 /**
  * Standard page heading block. Enforces one h1 per page, one measure for the
- * description, and a consistent rhythm across all eight destinations.
+ * description, and a consistent rhythm across every destination.
  */
 export function PageHeader({ eyebrow, title, description, actions, className }: PageHeaderProps) {
   return (

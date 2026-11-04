@@ -31,7 +31,7 @@ export default function AppEntryPage() {
         </h1>
         <p className="mt-2.5 max-w-[58ch] text-[0.9375rem] leading-7 text-ink-600">
           {isGuest
-            ? 'You can move through every public part of the platform. Anything that would need an account — saved progress, favourites, contributions — is switched off and labelled as such.'
+            ? 'You can move through every public part of the platform. WAZOBIA Learn works fully, and your progress is kept in this browser; anything that would need an account — sync, favourites, contributions — is switched off and labelled as such.'
             : 'Choose a destination to begin, or continue as a guest to explore without an account.'}
         </p>
 
@@ -83,7 +83,10 @@ export default function AppEntryPage() {
           description={
             <ul className="mt-1 list-disc space-y-1 pl-4">
               <li>Browse public pages and open every destination.</li>
-              <li>Nothing is saved to an account — no progress, favourites or contributions.</li>
+              <li>
+                Study, take quizzes and read stories — progress is kept in this browser only.
+              </li>
+              <li>Nothing is saved to an account, because there is no account service yet.</li>
               <li>No moderation, review or administrative actions are available.</li>
             </ul>
           }

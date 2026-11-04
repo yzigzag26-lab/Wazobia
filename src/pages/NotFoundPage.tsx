@@ -13,7 +13,7 @@ export default function NotFoundPage() {
         This page does not exist
       </h1>
       <p className="mt-2 max-w-prose text-sm leading-6 text-ink-600">
-        The address you followed is not part of WAZOBIA. These are the eight destinations that are.
+        The address you followed is not part of WAZOBIA. These are the five destinations that are.
       </p>
 
       <ul className="mt-6 grid gap-px overflow-hidden rounded-[var(--radius-md)] border border-paper-300 bg-paper-300 sm:grid-cols-2">

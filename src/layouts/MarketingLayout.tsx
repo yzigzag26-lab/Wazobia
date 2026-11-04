@@ -13,7 +13,7 @@ const NAV_LINKS = [
   { href: '#about', label: 'About' },
   { href: '#languages', label: 'Languages' },
   { href: '#how-it-works', label: 'How it works' },
-  { href: '#preserve', label: 'Preservation' },
+  { href: '#why', label: 'Why it matters' },
 ]
 
 /**
@@ -48,7 +48,12 @@ export function MarketingLayout() {
         Skip to content
       </a>
 
-      <header className="sticky top-0 z-40 border-b border-paper-200/80 bg-paper-50/90 backdrop-blur-md">
+      {/*
+        Translucent over a scrolling document, but built from the theme token via
+        color-mix rather than an opacity modifier — that compiles to a literal hex
+        and would stay near-white in dark mode.
+      */}
+      <header className="sticky top-0 z-40 border-b border-paper-200 bg-paper-50 backdrop-blur-md supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--color-paper-50)_92%,transparent)]">
         <div className="mx-auto flex h-16 w-full max-w-[80rem] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link to="/" className="flex items-center" aria-label="WAZOBIA — home">
             <WazobiaLogo variant="emblem" height={40} priority decorative />
@@ -105,11 +110,17 @@ export function MarketingLayout() {
 
             <FooterColumn
               title="Platform"
-              links={DESTINATIONS.slice(0, 4).map((d) => ({ label: d.name, href: d.href, to: true }))}
+              links={DESTINATIONS.filter((d) => d.tier === 'primary').map((d) => ({
+                label: d.name,
+                href: d.href,
+                to: true as const,
+              }))}
             />
             <FooterColumn
-              title="More"
-              links={DESTINATIONS.slice(4).map((d) => ({ label: d.name, href: d.href, to: true }))}
+              title="Tools"
+              links={DESTINATIONS.filter((d) => d.tier === 'utility' || d.tier === 'account').map(
+                (d) => ({ label: d.name, href: d.href, to: true as const }),
+              )}
             />
             <FooterColumn
               title="Account"

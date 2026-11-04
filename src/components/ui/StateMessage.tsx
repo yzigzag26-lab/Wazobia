@@ -16,7 +16,7 @@ const TONES = {
   neutral: 'border-paper-300 bg-white text-ink-700',
   info: 'border-gold-500 bg-gold-100 text-forest-800',
   waiting: 'border-paper-300 bg-paper-100 text-ink-700',
-  error: 'border-ember-600/30 bg-ember-100 text-ember-700',
+  error: 'border-ember-600 bg-ember-100 text-ember-700',
 } as const
 
 /**

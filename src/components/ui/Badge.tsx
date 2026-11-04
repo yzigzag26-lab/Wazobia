@@ -14,9 +14,9 @@ export interface BadgeProps {
 const TONES: Record<BadgeTone, string> = {
   neutral: 'bg-paper-200 text-ink-700 border-paper-300',
   accent: 'bg-forest-100 text-forest-900 border-forest-300',
-  pending: 'bg-gold-100 text-gold-700 border-gold-600/30',
-  approved: 'bg-forest-100 text-forest-700 border-forest-500/30',
-  danger: 'bg-ember-100 text-ember-700 border-ember-600/30',
+  pending: 'bg-gold-100 text-gold-700 border-gold-600',
+  approved: 'bg-forest-100 text-forest-700 border-forest-500',
+  danger: 'bg-ember-100 text-ember-700 border-ember-600',
   info: 'bg-gold-100 text-forest-800 border-gold-500',
 }
 

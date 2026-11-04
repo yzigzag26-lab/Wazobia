@@ -36,6 +36,13 @@
    Mirrored in src/config/tokens.ts for documentation and non-CSS consumers.
    ========================================================================== */
 @theme {
+  /* `bg-white` is used for raised surfaces throughout. It is re-pointed at a
+     theme token so dark mode can lighten it without touching 30 call sites.
+     `--color-white` itself stays literal for the six deliberate
+     `text-white`-on-forest-button cases. */
+  --color-white: #ffffff;
+  --color-surface: #ffffff;
+
   --color-paper-50: #fbfaf6;
   --color-paper-100: #f5f2ea;
   --color-paper-200: #ebe6da;
@@ -47,11 +54,13 @@
   --color-ink-700: #26332c;
   --color-ink-600: #41504a;
   --color-ink-500: #5f6d66;
+  --color-ink-300: #a9b2ac;
   --color-ink-400: #8b968f;
 
   --color-forest-50: #eef6f0;
   --color-forest-100: #d8ecdd;
   --color-forest-300: #7fb990;
+  --color-forest-400: #4fa06a;
   --color-forest-500: #1c8a42;
   --color-forest-600: #12622f;
   --color-forest-700: #0b4420;
@@ -90,6 +99,98 @@
      file are meant to mirror each other; this one was documented there but
      never emitted here, so `var(--gutter)` silently fell back to 1rem. */
   --gutter: clamp(1rem, 4vw, 2.5rem);
+}
+
+/* ==========================================================================
+   DARK THEME
+   ==========================================================================
+   Tailwind 4 emits every colour utility as `var(--color-*)` — verified in the
+   built stylesheet, including `bg-white`. That means the theme is switched by
+   redefining the palette custom properties, not by adding `dark:` variants to
+   ~450 class strings across 60 files.
+
+   Consequences, all deliberate:
+   - `--color-white` becomes the raised *surface* in dark mode. It is pinned
+     back to literal white in `.on-brand` for controls that sit on forest.
+   - The forest ramp inverts in usage: forest-700 is a *background* for primary
+     buttons, so it is lightened so white label text still passes AA on it.
+     Forest-800/900 remain the "on gold" text colours and stay dark.
+   - Gold and lime stay surface-only. They are not lightened because they are
+     already high-luminance; their foreground (forest-800/900) stays dark.
+
+   Contrast targets (all >= 4.5:1 for body text) are asserted in
+   `src/config/themeContrast.test.ts`, so this table cannot silently drift.
+   ========================================================================== */
+@layer base {
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+
+    /* Page ground and raised surfaces */
+    --color-paper-50: #0b100d;
+    --color-paper-100: #111815;
+    --color-paper-200: #1a231e;
+    --color-paper-300: #2a352f;
+    --color-paper-400: #3d4a43;
+
+    --color-white: #131c18;
+    --color-surface: #131c18;
+
+    /* Text ramps invert: 900 = strongest on dark ground */
+    --color-ink-900: #f2f5f3;
+    --color-ink-800: #e2e8e4;
+    --color-ink-700: #cdd6d0;
+    --color-ink-600: #aebbb3;
+    --color-ink-500: #92a099;
+    --color-ink-300: #61706a;
+    --color-ink-400: #77867e;
+
+    /* Forest: 700 is a button background here, so it must be light enough
+       for white text; 800/900 stay dark because they sit on gold/lime. */
+    --color-forest-50: #12251a;
+    --color-forest-100: #17331f;
+    --color-forest-300: #2f6b45;
+    --color-forest-400: #3d8a58;
+    --color-forest-500: #35a35c;
+    --color-forest-600: #46b76d;
+    --color-forest-700: #126b37;
+    --color-forest-800: #0a3a1e;
+    --color-forest-900: #04240f;
+
+    /* Ember: ember-600 is the destructive *button* background, so it is
+       darkened until white label text reaches 4.51:1. ember-500/700 are the
+       text tones and are lightened instead. */
+    --color-ember-100: #34180e;
+    --color-ember-500: #ff6a33;
+    --color-ember-600: #d44508;
+    --color-ember-700: #ff8256;
+
+    /* Gold and lime are unchanged: they are surfaces and accents only. */
+    --color-gold-100: #2a2209;
+    --color-gold-300: #6b5510;
+    --color-gold-500: #f5c518;
+    --color-gold-600: #d9a908;
+    --color-gold-700: #f0cb52;
+
+    --color-lime-100: #1d2610;
+    --color-lime-400: #8ed13a;
+    --color-lime-500: #74bd22;
+
+    /* Shadows are far less visible on dark; deepen them so elevation still reads. */
+    --wz-shadow-color: rgb(0 0 0 / 0.55);
+  }
+
+  /* Controls that sit on a forest/gold ground keep literal white type. */
+  :root[data-theme='dark'] .on-brand,
+  :root[data-theme='dark'] .on-brand * {
+    --color-white: #ffffff;
+    color: #ffffff;
+  }
+
+  /* The selection highlight needs inverting to stay legible. */
+  :root[data-theme='dark'] ::selection {
+    background-color: var(--color-forest-600);
+    color: #ffffff;
+  }
 }
 
 /* ==========================================================================

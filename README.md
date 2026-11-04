@@ -1,6 +1,6 @@
 # WAZOBIA — Frontend
 
-The African Language Ecosystem. **Learn. Speak. Understand. Preserve.**
+The African Language Ecosystem. **Learn. Understand. Translate.**
 Yorùbá · Hausa · Igbo, with English as a bridge language.
 
 > **Phase 1 of N — Public entry, authentication UI and guest access.**
@@ -54,19 +54,39 @@ The most recent full audit — what was verified, what was fixed, what is still 
 
 | Route | Page | Notes |
 |---|---|---|
-| `/` | Landing page | Hero, 8 modules, languages, how it works, preservation, CTA, footer |
+| `/` | Landing page | Hero, 4 learning pillars, languages, how it works, preservation, CTA, footer |
 | `/signup` | Registration | Full validation, no backend call, honest notice on submit |
 | `/login` | Login | Validation, remember-me, recovery notice, no fake auth |
 | `/onboarding` | Ten-question questionnaire, one per page | Skippable, local only, full a11y — see `docs/product/onboarding.md` |
 | `/app` | Application entry | Works instantly for guests |
-| `/app/*` | The eight destinations | Structured, status-labelled |
+| `/app/learn` | Learn hub | Exactly four pillars: Lessons, Quizzes, Proverb Cards, African Stories |
+| `/app/learn/lessons` | Course catalogue | Language → Course → Module → Lesson, with progress |
+| `/app/learn/quizzes` | Quiz bank | 9 quizzes; every answer explained |
+| `/app/learn/proverbs` | Proverb cards | 72 proverbs (24 per language), filterable by theme |
+| `/app/learn/stories` | African stories | 12 stories with translation, vocabulary and context |
+| `/app/dictionary` | Dictionary | Awaiting backend |
+| `/app/ai` | WAZOBIA AI | Awaiting backend |
+| `/app/translate` | Translate | Awaiting backend |
+| `/app/profile` | Profile | Details, language, learning preferences |
+| `/app/profile/settings/*` | Settings | Appearance, security, preferences, notifications, privacy |
 
 ## What exists today
 
-- **Application shell** — persistent collapsible sidebar on desktop, four-item bottom bar plus a
-  *More* sheet on phone, one shared content column and token set. Same product, two affordances.
-- **Eight destinations** — all routed, all reachable, each stating its real status
-  (`available` / `in development` / `planned`) and listing the backend contracts it needs.
+- **Application shell** — persistent collapsible sidebar on desktop, five-item bottom bar on phone,
+  one shared content column and token set. Same product, two affordances.
+- **Five destinations** — WAZOBIA Learn, WAZOBIA Dictionary, WAZOBIA AI, WAZOBIA Translate, Profile.
+  Each states its real status (`available` / `in development`) and, where relevant, the backend
+  contracts it needs. Speak, Community, Preserve and Research have been removed.
+- **WAZOBIA Learn** — the four learning pillars with real content: 12 lessons across three beginner
+  courses, 9 quizzes with an explanation on every question, 72 proverb cards, 12 stories. Progress
+  is device-local and the UI says so.
+- **Read Aloud** — browser speech synthesis with a language-voice check. It refuses to speak
+  Yorùbá, Hausa or Igbo with an English voice and explains why instead; see
+  [`docs/product/read-aloud.md`](docs/product/read-aloud.md).
+- **Theme** — light, dark or follow-the-device, changeable only in Profile → Settings →
+  Appearance. Driven entirely by CSS custom properties, with the palette contrast-checked in both
+  themes (`src/config/themeContrast.test.ts`) and every token verified to have a dark value
+  (`src/config/themeTokens.test.ts`).
 - **Language configuration** — `src/config/languages.ts` is the only place a language is defined.
   `yo`, `ha`, `ig` are first-class; `en` is the bridge. Adding a language is a data change.
 - **Design tokens** — forest, gold, lime and ember on warm paper, derived from the official logo

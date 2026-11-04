@@ -6,6 +6,8 @@ import { IconArrowRight, IconCheck, IconInfo } from '@/components/ui/icons'
 import { WazobiaLogo } from '@/components/brand/WazobiaLogo'
 import { onboardingService } from '@/services/onboarding'
 import { useSession } from '@/hooks/useSession'
+import { useProfile } from '@/hooks/useProfile'
+import { CommunityInviteModal } from '@/features/community/CommunityInviteModal'
 import { createEmptyOnboardingProfile, type UserOnboardingProfile } from '@/types/onboarding'
 import { STEP_NAMES, TOTAL_QUESTIONS, questionAt, type QuestionProps } from './questions'
 import { QuestionControl } from './QuestionControl'
@@ -38,12 +40,21 @@ function scrollToTop(): void {
 export function OnboardingWizard() {
   const navigate = useNavigate()
   const { isGuest } = useSession()
+  const profileStore = useProfile()
 
   const [index, setIndex] = useState(0)
   const [phase, setPhase] = useState<Phase>('questionnaire')
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({})
   const [submitting, setSubmitting] = useState(false)
   const [storedLocally, setStoredLocally] = useState(false)
+  /**
+   * The one-time community invitation is surfaced here and nowhere else.
+   *
+   * Arming it in `completeOnboarding` (rather than on a timer or on login) is
+   * what makes "after registration and onboarding, once, never on a normal
+   * login" a property of the code instead of a promise.
+   */
+  const [inviteOpen, setInviteOpen] = useState(false)
   const [profile, setProfile] = useState<UserOnboardingProfile>(
     () => onboardingService.readDraft() ?? createEmptyOnboardingProfile(),
   )
@@ -115,7 +126,11 @@ export function OnboardingWizard() {
     try {
       const result = await onboardingService.submit(profile)
       setStoredLocally(result.storedLocally)
+      // Publish the answers to the profile store so Learn can read the language
+      // without asking a second time.
+      profileStore.completeOnboarding(profile)
       setPhase('complete')
+      setInviteOpen(true)
       scrollToTop()
     } finally {
       setSubmitting(false)
@@ -183,6 +198,24 @@ export function OnboardingWizard() {
             preferences.
           </p>
         ) : null}
+
+        {/*
+          Rendered only in this completion phase, never on a normal login and never
+          for a guest who skipped onboarding. `dismissCommunityInvite` makes the
+          answer permanent, so it cannot reappear.
+        */}
+        <CommunityInviteModal
+          open={inviteOpen}
+          onJoin={() => {
+            profileStore.dismissCommunityInvite('joined')
+            setInviteOpen(false)
+            navigate('/app', { replace: true })
+          }}
+          onSkip={() => {
+            profileStore.dismissCommunityInvite('skipped')
+            setInviteOpen(false)
+          }}
+        />
       </div>
     )
   }

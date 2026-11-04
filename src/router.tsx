@@ -24,7 +24,26 @@ import RouteErrorPage from '@/pages/RouteErrorPage'
  *   /login       login (frontend-only, no backend call)
  *   /onboarding  ten-question questionnaire, one per page (skippable, local only)
  *   /app         application entry — works immediately for guests
- *   /app/*       the eight destinations
+ *   /app/*       the five destinations
+ *
+ * Learn is the only destination with a nested tree:
+ *
+ *   /app/learn                  the hub — four pillars, never more
+ *   /app/learn/lessons          course catalogue for the primary language
+ *   /app/learn/lessons/:courseId
+ *   /app/learn/lessons/:courseId/:lessonId
+ *   /app/learn/quizzes          quiz bank
+ *   /app/learn/quizzes/:quizId
+ *   /app/learn/proverbs         proverb cards, filterable by theme
+ *   /app/learn/proverbs/:proverbId
+ *   /app/learn/stories          story collection, filterable by category
+ *   /app/learn/stories/:storyId
+ *
+ * Profile also nests, but only one level, for Settings:
+ *
+ *   /app/profile
+ *   /app/profile/settings
+ *   /app/profile/settings/{appearance,security,preferences,notifications,privacy}
  *
  * Every data-bearing route sits under /app so public marketing pages never have
  * to know about the application shell, and future auth-guarded groups can wrap
@@ -40,12 +59,30 @@ const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 const AiPage = lazy(() => import('@/features/ai/AiPage'))
 const TranslatePage = lazy(() => import('@/features/translate/TranslatePage'))
-const LearnPage = lazy(() => import('@/features/learn/LearnPage'))
-const SpeakPage = lazy(() => import('@/features/speak/SpeakPage'))
 const DictionaryPage = lazy(() => import('@/features/dictionary/DictionaryPage'))
-const CommunityPage = lazy(() => import('@/features/community/CommunityPage'))
-const PreservePage = lazy(() => import('@/features/preserve/PreservePage'))
-const ResearchPage = lazy(() => import('@/features/research/ResearchPage'))
+
+/* Learn — four pillars, each its own tree. */
+const LearnPage = lazy(() => import('@/features/learn/LearnPage'))
+const LessonsIndexPage = lazy(() => import('@/features/learn/lessons/LessonsIndexPage'))
+const CoursePage = lazy(() => import('@/features/learn/lessons/CoursePage'))
+const LessonPage = lazy(() => import('@/features/learn/lessons/LessonPage'))
+const QuizzesIndexPage = lazy(() => import('@/features/learn/quizzes/QuizzesIndexPage'))
+const QuizPage = lazy(() => import('@/features/learn/quizzes/QuizPage'))
+const ProverbsIndexPage = lazy(() => import('@/features/learn/proverbs/ProverbsIndexPage'))
+const ProverbPage = lazy(() => import('@/features/learn/proverbs/ProverbPage'))
+const StoriesIndexPage = lazy(() => import('@/features/learn/stories/StoriesIndexPage'))
+const StoryPage = lazy(() => import('@/features/learn/stories/StoryPage'))
+
+/* Profile and its settings panels. */
+const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
+const SettingsPage = lazy(() => import('@/features/profile/SettingsPage'))
+const AppearanceSettings = lazy(() => import('@/features/profile/settings/AppearanceSettings'))
+const SecuritySettings = lazy(() => import('@/features/profile/settings/SecuritySettings'))
+const PreferencesSettings = lazy(() => import('@/features/profile/settings/PreferencesSettings'))
+const NotificationsSettings = lazy(
+  () => import('@/features/profile/settings/NotificationsSettings'),
+)
+const PrivacySettings = lazy(() => import('@/features/profile/settings/PrivacySettings'))
 
 function page(element: React.ReactNode) {
   return <Suspense fallback={<RouteFallback />}>{element}</Suspense>
@@ -74,14 +111,77 @@ export const routes: RouteObject[] = [
         element: <AppShell />,
         children: [
           { index: true, element: page(<AppEntryPage />) },
-          { path: 'ai', element: page(<AiPage />) },
-          { path: 'translate', element: page(<TranslatePage />) },
-          { path: 'learn', element: page(<LearnPage />) },
-          { path: 'speak', element: page(<SpeakPage />) },
+
+          /* -------------------------------------------------- 1. Learn */
+          {
+            path: 'learn',
+            children: [
+              { index: true, element: page(<LearnPage />) },
+              {
+                path: 'lessons',
+                children: [
+                  { index: true, element: page(<LessonsIndexPage />) },
+                  {
+                    path: ':courseId',
+                    children: [
+                      { index: true, element: page(<CoursePage />) },
+                      { path: ':lessonId', element: page(<LessonPage />) },
+                    ],
+                  },
+                ],
+              },
+              {
+                path: 'quizzes',
+                children: [
+                  { index: true, element: page(<QuizzesIndexPage />) },
+                  { path: ':quizId', element: page(<QuizPage />) },
+                ],
+              },
+              {
+                path: 'proverbs',
+                children: [
+                  { index: true, element: page(<ProverbsIndexPage />) },
+                  { path: ':proverbId', element: page(<ProverbPage />) },
+                ],
+              },
+              {
+                path: 'stories',
+                children: [
+                  { index: true, element: page(<StoriesIndexPage />) },
+                  { path: ':storyId', element: page(<StoryPage />) },
+                ],
+              },
+            ],
+          },
+
+          /* ---------------------------------------------- 2. Dictionary */
           { path: 'dictionary', element: page(<DictionaryPage />) },
-          { path: 'community', element: page(<CommunityPage />) },
-          { path: 'preserve', element: page(<PreservePage />) },
-          { path: 'research', element: page(<ResearchPage />) },
+
+          /* --------------------------------------------------- 3. AI */
+          { path: 'ai', element: page(<AiPage />) },
+
+          /* -------------------------------------------- 4. Translate */
+          { path: 'translate', element: page(<TranslatePage />) },
+
+          /* ---------------------------------------------- 5. Profile */
+          {
+            path: 'profile',
+            children: [
+              { index: true, element: page(<ProfilePage />) },
+              {
+                path: 'settings',
+                element: page(<SettingsPage />),
+                children: [
+                  { path: 'appearance', element: page(<AppearanceSettings />) },
+                  { path: 'security', element: page(<SecuritySettings />) },
+                  { path: 'preferences', element: page(<PreferencesSettings />) },
+                  { path: 'notifications', element: page(<NotificationsSettings />) },
+                  { path: 'privacy', element: page(<PrivacySettings />) },
+                ],
+              },
+            ],
+          },
+
           { path: '*', element: page(<NotFoundPage />) },
         ],
       },

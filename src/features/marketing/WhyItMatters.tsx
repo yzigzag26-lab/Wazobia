@@ -22,7 +22,11 @@ const PILLARS = [
 
 export function WhyItMatters() {
   return (
-    <section className="border-t border-paper-200 bg-white" aria-labelledby="why-heading">
+    <section
+      id="why"
+      className="scroll-mt-20 border-t border-paper-200 bg-white"
+      aria-labelledby="why-heading"
+    >
       <div className="mx-auto w-full max-w-[80rem] px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <div className="grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
           <div>
