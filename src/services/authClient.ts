@@ -74,8 +74,16 @@ const MESSAGES: Readonly<Record<AuthErrorCode, string>> = {
   WEAK_PASSWORD: 'Please choose a password with at least 8 characters.',
   INVALID_EMAIL: 'That does not look like an email address.',
   RATE_LIMITED: 'Too many attempts. Please wait a minute and try again.',
-  NOT_CONFIGURED: 'Sign-in is not configured for this build.',
-  NETWORK_ERROR: 'We could not reach the sign-in service. Check your connection.',
+  // Names the two variables. "Not configured" alone left a developer with
+  // nothing to act on — this error is only ever seen by whoever is running the
+  // build, never by an end user, so being specific costs nothing.
+  NOT_CONFIGURED:
+    'Sign-in is not configured for this build. Set VITE_SUPABASE_URL and ' +
+    'VITE_SUPABASE_ANON_KEY, then rebuild — Vite inlines them at build time, ' +
+    'so changing them without a rebuild has no effect.',
+  NETWORK_ERROR:
+    'We could not reach the sign-in service. Check your connection — or, if you ' +
+    'are running locally, check that VITE_SUPABASE_URL points at a reachable project.',
   UNKNOWN: 'Something went wrong while signing you in. Please try again.',
 }
 
@@ -173,8 +181,23 @@ function authHeaders(accessToken?: string): Record<string, string> {
 async function post(path: string, body: unknown): Promise<unknown> {
   const url = authUrl(path)
   const anonKey = env.supabaseAnonKey
+
   if (url === null || !anonKey) {
-    throw new AuthError('NOT_CONFIGURED', messageFor('NOT_CONFIGURED'))
+    // Distinguish "wrong URL" from "missing key": the two have different fixes,
+    // and a single message sent people looking in the wrong place.
+    const missing: string[] = []
+    if (env.supabaseUrl === undefined) missing.push('VITE_SUPABASE_URL')
+    if (!anonKey) missing.push('VITE_SUPABASE_ANON_KEY')
+    // A URL that is present but not absolute produces authUrl() === null.
+    if (env.supabaseUrl !== undefined && url === null) {
+      missing.length = 0
+      missing.push('VITE_SUPABASE_URL (not an absolute https:// URL)')
+    }
+
+    throw new AuthError(
+      'NOT_CONFIGURED',
+      `${messageFor('NOT_CONFIGURED')} Missing: ${missing.join(', ')}.`,
+    )
   }
 
   let response: Response
