@@ -7,7 +7,10 @@ Yorùbá · Hausa · Igbo, with English as a bridge language.
 > Landing page, sign-up, login, guest sessions and the application shell are complete.
 > **The backend is now real and partially live.** `GET /api/v1/languages` serves the launch
 > catalogue from Postgres, and the database schema for every contracted endpoint exists with Row
-> Level Security. Endpoints without a handler still state that honestly — nothing is simulated.
+> Level Security. One caveat worth stating plainly: that endpoint is **not yet consumed by the UI** —
+> `languageService` exists and is tested, but no component calls it, so every screen still reads the
+> hardcoded `src/config/languages.ts`. Wiring it up is the next step. Endpoints without a handler
+> still state that honestly — nothing is simulated.
 
 ---
 
