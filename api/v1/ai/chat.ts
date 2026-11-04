@@ -1,49 +1,45 @@
 /**
  * `POST /api/v1/ai/chat` — Vercel serverless entry point.
  *
- * The dictionary lookup used for citations runs under the ANON key, so it can
- * only ever see approved entries — the same rows a browser could read.
+ * PROTECTED: requires `Authorization: Bearer <supabase access token>`.
+ *
+ * Same ordering as `/translate` — verify, rate limit, validate, then spend a
+ * provider credit. See `api/v1/translate.ts` for the full rationale.
+ *
+ * The dictionary lookup used for citations runs with the anon key: it reads only
+ * approved rows, which are public by design. The caller's token is deliberately
+ * NOT forwarded here, because a citation must be provably public rather than
+ * merely visible to whoever happens to be asking.
  */
 
 import { createChatHandler } from '../../_lib/ai/chat-handler.js'
 import { selectProvider } from '../../_lib/ai/provider.js'
 import { createRestDictionaryRepository } from '../../_lib/dictionary/repository.js'
+import { createTokenVerifier } from '../../_lib/auth/verify.js'
+import { protect } from '../../_lib/auth/guard.js'
+import { createRestRateLimiter, createNullRateLimiter } from '../../_lib/rate-limit.js'
+import { readServerConfig, issuerFor } from '../../_lib/config.js'
+import { jsonResponse } from '../../_lib/http.js'
+import { errorEnvelope } from '../../_lib/envelope.js'
+import { resolveRequestId } from '../../_lib/request-id.js'
+import { toHttpRequest, send, type PlatformRequest, type PlatformResponse } from '../../_lib/platform.js'
+import type { ApprovedEntryLookup } from '../../_lib/ai/chat-handler.js'
 
-interface PlatformRequest {
-  readonly method?: string | undefined
-  readonly body?: unknown
-  readonly headers: Record<string, string | string[] | undefined>
-}
+function buildLookup(
+  supabaseUrl: string | null,
+  anonKey: string | null,
+): ApprovedEntryLookup | null {
+  if (supabaseUrl === null || anonKey === null) return null
 
-interface PlatformResponse {
-  status(code: number): PlatformResponse
-  setHeader(name: string, value: string): PlatformResponse
-  json(body: unknown): void
-  end(body?: string): void
-}
+  const repository = createRestDictionaryRepository({ supabaseUrl, anonKey })
 
-function firstHeader(
-  headers: Record<string, string | string[] | undefined>,
-  name: string,
-): string | null {
-  const value = headers[name] ?? headers[name.toLowerCase()]
-  if (Array.isArray(value)) return value[0] ?? null
-  return value ?? null
-}
-
-function buildLookup() {
-  const url = process.env['SUPABASE_URL']?.trim()
-  const anonKey = process.env['SUPABASE_ANON_KEY']?.trim()
-  if (!url || !anonKey) return null
-
-  const repository = createRestDictionaryRepository({ supabaseUrl: url, anonKey })
   return {
-    async findApproved(term: string, language: string) {
-      const { results } = await repository.search(term, language, 3, 0)
-      // `search` already filters to approved via RLS and an explicit param, but
-      // the filter is restated here because a citation must be provably
-      // approved, not approved-by-assumption.
-      return results
+    async findApproved(term) {
+      const page = await repository.search(term, null, 3, 0)
+      // `dictionary_approved_read` already filters this in the database. The
+      // filter is restated here because a citation must be provably approved,
+      // not approved-by-assumption.
+      return page.results
         .filter((row) => row.review_status === 'approved')
         .map((row) => ({ id: row.id, headword: row.headword, gloss: row.gloss }))
     },
@@ -54,25 +50,41 @@ export default async function handler(
   request: PlatformRequest,
   response: PlatformResponse,
 ): Promise<void> {
-  const requestIdHeader = firstHeader(request.headers, 'x-request-id')
-  const run = createChatHandler(selectProvider(), buildLookup())
+  const config = readServerConfig()
+  const httpRequest = toHttpRequest(request)
+  const requestId = resolveRequestId(httpRequest.requestIdHeader)
 
-  const result = await run({
-    method: request.method ?? 'POST',
-    params: {},
-    query: {},
-    body: request.body,
-    authorization: firstHeader(request.headers, 'authorization'),
-    requestIdHeader,
-  })
-
-  response.status(result.status)
-  for (const [name, value] of Object.entries(result.headers)) {
-    response.setHeader(name, value)
-  }
-  if (result.body === undefined) {
-    response.end()
+  if (config.supabaseJwtSecret === null) {
+    send(
+      response,
+      jsonResponse(
+        503,
+        errorEnvelope('PROVIDER_UNAVAILABLE', requestId, {
+          message: 'Sign-in is not configured on this deployment.',
+        }),
+      ),
+    )
     return
   }
-  response.json(result.body)
+
+  const verify = createTokenVerifier({
+    jwtSecret: config.supabaseJwtSecret,
+    issuer: issuerFor(config),
+  })
+
+  const rateLimiter =
+    config.supabaseUrl !== null && config.supabaseAnonKey !== null
+      ? createRestRateLimiter({
+          supabaseUrl: config.supabaseUrl,
+          anonKey: config.supabaseAnonKey,
+        })
+      : createNullRateLimiter()
+
+  const chat = createChatHandler(selectProvider(), buildLookup(config.supabaseUrl, config.supabaseAnonKey), {
+    rateLimiter,
+  })
+
+  const result = await protect(verify, (req) => chat(req), httpRequest)
+
+  send(response, result)
 }

@@ -1,6 +1,7 @@
 import { successEnvelope, errorEnvelope } from '../envelope.js'
 import { resolveRequestId } from '../request-id.js'
 import { jsonResponse, type HttpRequest, type HttpResponse } from '../http.js'
+import type { RateLimiter } from '../rate-limit.js'
 import { ProviderError, type AiProvider } from '../ai/provider.js'
 
 /**
@@ -57,7 +58,15 @@ Absolute requirements:
 5. If you do not know a translation, set "translation" to "" and say so in a single alternative with a note. Never invent a word.
 6. Do not add explanations outside the JSON.`
 
-export function createTranslateHandler(provider: AiProvider | null) {
+/** See `ChatHandlerDeps` for why the limiter is injected rather than imported. */
+export interface TranslateHandlerDeps {
+  readonly rateLimiter?: RateLimiter | undefined
+}
+
+export function createTranslateHandler(
+  provider: AiProvider | null,
+  deps: TranslateHandlerDeps = {},
+) {
   return async function translateHandler(request: HttpRequest): Promise<HttpResponse> {
     const requestId = resolveRequestId(request.requestIdHeader)
 
@@ -69,6 +78,19 @@ export function createTranslateHandler(provider: AiProvider | null) {
         }),
         { allow: 'POST' },
       )
+    }
+
+    if (deps.rateLimiter !== undefined) {
+      const decision = await deps.rateLimiter('translate', request.authorization)
+      if (!decision.allowed) {
+        return jsonResponse(
+          429,
+          errorEnvelope('RATE_LIMITED', requestId, {
+            details: { retry_after_seconds: decision.retryAfterSeconds },
+          }),
+          { 'retry-after': String(decision.retryAfterSeconds) },
+        )
+      }
     }
 
     const body = request.body as Record<string, unknown> | undefined

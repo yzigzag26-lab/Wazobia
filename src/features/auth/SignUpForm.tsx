@@ -5,10 +5,11 @@ import { CheckboxField, Field, RuleList } from '@/components/ui/Field'
 import { StateMessage } from '@/components/ui/StateMessage'
 import { IconArrowRight, IconInfo } from '@/components/ui/icons'
 import { useSession } from '@/hooks/useSession'
+import { useAuth } from '@/hooks/useAuth'
+import { AuthError } from '@/services/authClient'
 import {
   evaluatePasswordRules,
   hasErrors,
-  isPasswordAcceptable,
   validateSignUp,
   type FieldErrors,
   type SignUpField,
@@ -27,14 +28,24 @@ const INITIAL: SignUpValues = {
 /**
  * Registration form.
  *
- * The form validates fully and then **stops**. There is no backend, so it does
- * not pretend to create an account: it shows an honest notice and offers the one
- * path that genuinely works — continuing as a guest.
+ * Creates a real Supabase account and signs the user in immediately.
  *
- * Integration point: replace the body of `handleSubmit` with a call to
- * `authService.register()` (Supabase Auth via a server route). Everything above
- * that line — state, validation, error rendering, accessibility wiring —
- * is already final.
+ * ## Why there is no "check your email" screen
+ *
+ * The project runs with `mailer_autoconfirm: true`, so signup returns a usable
+ * access token in the same response. A verification screen here would be a
+ * screen the user could never leave. If the backend is ever reconfigured to
+ * require confirmation, `authService.signUp` throws instead of silently landing
+ * the user in a signed-in shell with a dead token — see the null-session branch
+ * in `signUp`.
+ *
+ * ## What is sent and what is not
+ *
+ * Supabase receives an email and a password. The display name goes into user
+ * metadata, where the `handle_new_user` trigger reads it to populate
+ * `profiles.display_name`. The username field is kept as a *local* handle only:
+ * there is no `username` column, and inventing one here would store a value
+ * nobody can query.
  */
 export function SignUpForm() {
   const [values, setValues] = useState<SignUpValues>(INITIAL)
@@ -42,7 +53,10 @@ export function SignUpForm() {
   const [submitted, setSubmitted] = useState(false)
   const [touched, setTouched] = useState<Partial<Record<SignUpField, boolean>>>({})
   const { startGuestSession } = useSession()
+  const { signUp } = useAuth()
   const navigate = useNavigate()
+  const [submitting, setSubmitting] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
 
   const passwordRules = evaluatePasswordRules(values.password)
 
@@ -61,8 +75,9 @@ export function SignUpForm() {
     setTouched((current) => ({ ...current, [key]: true }))
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setFailure(null)
     const nextErrors = validateSignUp(values)
     setErrors(nextErrors)
     setTouched({
@@ -81,16 +96,19 @@ export function SignUpForm() {
       return
     }
 
-    /**
-     * No backend exists. Passing validation does not mean an account was made,
-     * and this branch deliberately does not imply otherwise.
-     *
-     * The recommended journey is Sign Up → Account Details → Onboarding. We
-     * therefore hand the user straight to the questionnaire rather than to a
-     * dead end, while keeping the "no account was created" notice on screen so
-     * the state is never misrepresented.
-     */
-    setSubmitted(true)
+    setSubmitting(true)
+    try {
+      await signUp(values.email.trim(), values.password, values.fullName.trim())
+      setSubmitted(true)
+    } catch (error) {
+      setFailure(
+        error instanceof AuthError
+          ? error.message
+          : 'Something went wrong while creating your account. Please try again.',
+      )
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   function continueAsGuest() {
@@ -102,14 +120,14 @@ export function SignUpForm() {
     return (
       <div className="space-y-5">
         <StateMessage
-          tone="waiting"
+          tone="info"
           icon={<IconInfo width={18} height={18} />}
-          title="Account registration is not available yet"
+          title="Your account is ready"
           description={
             <>
-              Your details passed validation, but WAZOBIA does not have an account service
-              connected. Nothing was sent and no account was created. You can continue exploring
-              WAZOBIA as a guest.
+              You are signed in as <strong>{values.email.trim()}</strong>. No email
+              confirmation is needed, so you can start straight away. Next, tell us which
+              language you want to learn.
             </>
           }
         />
@@ -121,19 +139,9 @@ export function SignUpForm() {
           >
             Continue to onboarding
           </Button>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            <Button variant="secondary" onClick={continueAsGuest}>
-              Continue as guest
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setSubmitted(false)
-              }}
-            >
-              Back to the form
-            </Button>
-          </div>
+          <Button variant="ghost" onClick={() => navigate('/app')} fullWidth>
+            Skip for now
+          </Button>
         </div>
       </div>
     )
@@ -141,6 +149,15 @@ export function SignUpForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
+      {failure !== null ? (
+        <StateMessage
+          tone="error"
+          icon={<IconInfo width={18} height={18} />}
+          title="Could not create your account"
+          description={failure}
+        />
+      ) : null}
+
       <Field
         id="signup-fullName"
         name="fullName"
@@ -225,13 +242,13 @@ export function SignUpForm() {
         }
       />
 
-      <Button type="submit" size="md" fullWidth>
-        Create account
+      <Button type="submit" size="md" fullWidth disabled={submitting}>
+        {submitting ? 'Creating account…' : 'Create account'}
       </Button>
 
       <p className="text-center text-xs leading-5 text-ink-500">
-        Terms and privacy documents are drafts until legal review is complete. Nothing is submitted
-        or stored by this form.
+        No email confirmation is required — your account works immediately. Terms and privacy
+        documents are drafts until legal review is complete.
       </p>
 
       <div className="relative py-1 text-center">
@@ -245,12 +262,6 @@ export function SignUpForm() {
         Continue as guest
       </Button>
 
-      {/* Keeps the advisory password rule honest without blocking submission. */}
-      {values.password && !isPasswordAcceptable(values.password) ? (
-        <p className="text-center text-xs text-ink-500">
-          A stronger password will be required once accounts are live.
-        </p>
-      ) : null}
     </form>
   )
 }

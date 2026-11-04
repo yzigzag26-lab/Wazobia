@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StateMessage } from '@/components/ui/StateMessage'
+import { useAuth } from '@/hooks/useAuth'
 import { aiService } from '@/services/api'
 import { WazobiaApiError } from '@/services/client'
 import type { ChatResponse } from '@/services/contracts/endpoints'
@@ -49,6 +50,10 @@ const SUGGESTIONS = [
 ]
 
 export default function AiPage() {
+  // Protected endpoint: the server answers 401 without a token, so a signed-out
+  // visitor is told to sign in instead of being sent to a paid provider.
+  const { accessToken } = useAuth()
+
   const [message, setMessage] = useState('')
   const [language, setLanguage] = useState<string>('yo')
   const [turns, setTurns] = useState<readonly Turn[]>([])
@@ -81,7 +86,7 @@ export default function AiPage() {
         message: question,
         language: language as 'yo' | 'ha' | 'ig' | 'en',
         conversation_id: conversationId,
-      })
+      }, { accessToken })
       setConversationId(response.conversation_id)
       setTurns((current) => [
         ...current,
@@ -94,7 +99,18 @@ export default function AiPage() {
         },
       ])
     } catch (error) {
-      if (error instanceof WazobiaApiError && error.code === 'PROVIDER_UNAVAILABLE') {
+      if (error instanceof WazobiaApiError && error.code === 'UNAUTHENTICATED') {
+        // The protection working as designed. Point at the fix.
+        setFailure({
+          kind: 'error',
+          message: 'Please sign in to ask the tutor a question. This keeps AI answers available to everyone.',
+        })
+      } else if (error instanceof WazobiaApiError && error.code === 'RATE_LIMITED') {
+        setFailure({
+          kind: 'error',
+          message: 'You have reached the question limit for now. Please wait a few minutes and try again.',
+        })
+      } else if (error instanceof WazobiaApiError && error.code === 'PROVIDER_UNAVAILABLE') {
         setFailure({
           kind: 'unavailable',
           message:

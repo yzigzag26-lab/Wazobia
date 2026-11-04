@@ -1,6 +1,7 @@
 import { successEnvelope, errorEnvelope } from '../envelope.js'
 import { resolveRequestId } from '../request-id.js'
 import { jsonResponse, type HttpRequest, type HttpResponse } from '../http.js'
+import type { RateLimiter } from '../rate-limit.js'
 import { ProviderError, type AiProvider } from './provider.js'
 
 /**
@@ -65,7 +66,20 @@ function newConversationId(): string {
   return `conv_${crypto.randomUUID()}`
 }
 
-export function createChatHandler(provider: AiProvider | null, lookup: ApprovedEntryLookup | null) {
+/**
+ * `deps.rateLimiter` is optional so the handler stays callable in isolation.
+ * When supplied it is consulted AFTER authentication (the adapter's `protect`
+ * wrapper) and BEFORE any provider spend.
+ */
+export interface ChatHandlerDeps {
+  readonly rateLimiter?: RateLimiter | undefined
+}
+
+export function createChatHandler(
+  provider: AiProvider | null,
+  lookup: ApprovedEntryLookup | null,
+  deps: ChatHandlerDeps = {},
+) {
   return async function chatHandler(request: HttpRequest): Promise<HttpResponse> {
     const requestId = resolveRequestId(request.requestIdHeader)
 
@@ -77,6 +91,19 @@ export function createChatHandler(provider: AiProvider | null, lookup: ApprovedE
         }),
         { allow: 'POST' },
       )
+    }
+
+    if (deps.rateLimiter !== undefined) {
+      const decision = await deps.rateLimiter('chat', request.authorization)
+      if (!decision.allowed) {
+        return jsonResponse(
+          429,
+          errorEnvelope('RATE_LIMITED', requestId, {
+            details: { retry_after_seconds: decision.retryAfterSeconds },
+          }),
+          { 'retry-after': String(decision.retryAfterSeconds) },
+        )
+      }
     }
 
     const body = request.body as Record<string, unknown> | undefined

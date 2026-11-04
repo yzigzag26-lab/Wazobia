@@ -7,6 +7,7 @@ import type {
   ListCoursesResponse,
   Lesson,
   ListLanguagesResponse,
+  Profile,
   TranslateRequest,
   TranslateResponse,
 } from './contracts/endpoints'
@@ -26,14 +27,44 @@ export const languageService = {
   },
 }
 
+/**
+ * `aiService` and `translateService` are protected endpoints: both require a
+ * bearer token and the server answers 401 without one. Making `accessToken`
+ * required at the type level means a caller cannot forget it — the mistake is a
+ * compile error rather than a runtime failure on a page a user is looking at.
+ */
+export interface AuthedCall {
+  readonly accessToken: string | undefined
+  readonly signal?: AbortSignal | undefined
+}
+
 export const aiService = {
-  chat: async (payload: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> =>
-    apiRequest<ChatResponse>('/ai/chat', { method: 'POST', body: payload, signal }),
+  chat: async (payload: ChatRequest, auth: AuthedCall): Promise<ChatResponse> =>
+    apiRequest<ChatResponse>('/ai/chat', {
+      method: 'POST',
+      body: payload,
+      accessToken: auth.accessToken,
+      ...(auth.signal === undefined ? {} : { signal: auth.signal }),
+    }),
 }
 
 export const translateService = {
-  translate: async (payload: TranslateRequest, signal?: AbortSignal): Promise<TranslateResponse> =>
-    apiRequest<TranslateResponse>('/translate', { method: 'POST', body: payload, signal }),
+  translate: async (payload: TranslateRequest, auth: AuthedCall): Promise<TranslateResponse> =>
+    apiRequest<TranslateResponse>('/translate', {
+      method: 'POST',
+      body: payload,
+      accessToken: auth.accessToken,
+      ...(auth.signal === undefined ? {} : { signal: auth.signal }),
+    }),
+}
+
+export const userService = {
+  /** `GET /api/v1/users/me` — the caller, resolved from their own token. */
+  me: async (accessToken: string | undefined, signal?: AbortSignal): Promise<Profile> =>
+    apiRequest<Profile>('/users/me', {
+      accessToken,
+      ...(signal === undefined ? {} : { signal }),
+    }),
 }
 
 export const dictionaryService = {

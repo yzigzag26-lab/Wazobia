@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StateMessage } from '@/components/ui/StateMessage'
+import { useAuth } from '@/hooks/useAuth'
 import { translateService } from '@/services/api'
 import { WazobiaApiError } from '@/services/client'
 import type { TranslateResponse, TranslationRegister } from '@/services/contracts/endpoints'
@@ -46,6 +47,10 @@ type Phase =
   | { readonly kind: 'error'; readonly message: string }
 
 export default function TranslatePage() {
+  // Protected endpoint: the server answers 401 without a token, so a signed-out
+  // visitor is told to sign in instead of being sent to a paid provider.
+  const { accessToken } = useAuth()
+
   const [text, setText] = useState('')
   const [source, setSource] = useState<string>('en')
   const [target, setTarget] = useState<string>('yo')
@@ -71,9 +76,25 @@ export default function TranslatePage() {
         source_language: source === 'auto' ? 'auto' : (source as 'en' | 'yo' | 'ha' | 'ig'),
         target_language: target as 'en' | 'yo' | 'ha' | 'ig',
         register,
-      })
+      }, { accessToken })
       setPhase({ kind: 'result', result })
     } catch (error) {
+      // 401 is not a failure to apologise for — it is the protection working.
+      // Say so plainly and point at the fix instead of showing a generic error.
+      if (error instanceof WazobiaApiError && error.code === 'UNAUTHENTICATED') {
+        setPhase({
+          kind: 'error',
+          message: 'Please sign in to translate. Translation is protected so that it stays free for learners.',
+        })
+        return
+      }
+      if (error instanceof WazobiaApiError && error.code === 'RATE_LIMITED') {
+        setPhase({
+          kind: 'error',
+          message: 'You have reached the translation limit for now. Please wait a few minutes and try again.',
+        })
+        return
+      }
       if (error instanceof WazobiaApiError && error.code === 'PROVIDER_UNAVAILABLE') {
         setPhase({
           kind: 'unavailable',
