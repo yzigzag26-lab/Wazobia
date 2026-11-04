@@ -21,6 +21,8 @@ Yorùbá · Hausa · Igbo, with English as a bridge language.
 | Accessible primitives | Radix Dialog / Dropdown / Tooltip — behaviour only, never styled kits |
 | Auth client | Supabase JS (browser anon key only) |
 | Tests | Vitest + Testing Library + jsdom |
+| Lint | oxlint (`npm run lint` — 0 warnings, 0 errors) |
+| CI | GitHub Actions: typecheck → lint → test → build, plus a client-bundle secret scan |
 
 ---
 
@@ -36,9 +38,13 @@ npm run dev                    # http://localhost:5173
 |---|---|
 | `npm run dev` | Dev server |
 | `npm run verify` | Type-check → lint → tests → production build (run before every commit) |
+| `npm run verify:ci` | The same, starting from `npm ci` — reproduces CI locally |
 | `npm run typecheck` | `tsc -b --noEmit` |
 | `npm run lint` | oxlint |
 | `npm run test` | Vitest (single run) |
+
+Tooling rules, the lint configuration and the CI gate are documented in
+[`docs/architecture/engineering-standards.md`](docs/architecture/engineering-standards.md).
 
 ---
 
