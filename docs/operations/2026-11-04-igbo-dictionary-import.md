@@ -34,18 +34,32 @@ as a dictionary. `ig-en_expanded.json` is byte-identical to `ig-en.json`.
 
 ## Loaded so far
 
-**1,000 rows**, all `review_status = 'pending'`, all with the Apache-2.0 provenance
-recorded. That is roughly the first alphabet third of the affix range (`-a…` → `-g`).
+**1,000 of 8,135 rows**, all `review_status = 'pending'`, all with the Apache-2.0
+provenance recorded.
+
+The composition of what landed is the important part, and it is **not** a good
+dictionary yet:
+
+| | |
+|---|---|
+| Rows whose headword begins with `-` or `(` — verb affixes and phrasal forms | **946** |
+| Rows whose headword is a standalone word | **54** |
+
+The source is sorted alphabetically, so the first third of the alphabet is almost
+entirely the affix block (`-ba`, `-bè`, `-chị`, `-gbà`, …). 946 of 1,000 rows being
+affixes is why this load should not be called a working dictionary.
 
 ## Not yet loaded
 
-**7,135 rows** remain. The generated SQL is committed so the load can be finished
-without re-deriving anything:
+**7,135 rows** remain. The generated SQL is reproducible from the importer and is
+gitignored (1.4 MB), so it must be regenerated rather than pulled from Git:
 
-- `supabase/import/out/ig-bo.sql` — the full 8,135-row file, idempotent
-  (`on conflict do nothing`), safe to re-run in full.
+```
+node supabase/import/igbo-api.mjs --in ig-en.json --out supabase/import/out/ig-bo.sql
+```
 
-Any client with a database connection can finish this in one command:
+The output is idempotent (`on conflict do nothing`), so it is safe to re-run in full
+over what is already loaded. Any client with a database connection can then finish it:
 
 ```
 psql "$DATABASE_URL" -f supabase/import/out/ig-bo.sql
