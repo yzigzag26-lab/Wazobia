@@ -27,6 +27,7 @@ import { createRestLanguageRepository } from '../_lib/languages/repository.js'
 import { jsonResponse } from '../_lib/http.js'
 import { errorEnvelope } from '../_lib/envelope.js'
 import { resolveRequestId } from '../_lib/request-id.js'
+import { readServerConfig } from '../_lib/config.js'
 
 /**
  * Minimal structural types for the platform objects.
@@ -81,10 +82,18 @@ function queryParams(request: PlatformRequest): Record<string, string> {
 }
 
 function buildHandler() {
-  const url = process.env['SUPABASE_URL']?.trim()
-  const anonKey = process.env['SUPABASE_ANON_KEY']?.trim()
+  // Read through `readServerConfig`, never `process.env` directly.
+  //
+  // Reading the environment here meant this endpoint ignored every alias and
+  // fallback the config module provides — including deriving the project URL
+  // from the anon key. The deployment had the VITE_ pair configured and this
+  // endpoint still reported "not configured", taking the whole public catalogue
+  // down while the rest of the app looked healthy.
+  const config = readServerConfig()
+  const url = config.supabaseUrl
+  const anonKey = config.supabaseAnonKey
 
-  if (!url || !anonKey) return null
+  if (url === null || anonKey === null) return null
 
   return createLanguagesHandler(
     createRestLanguageRepository({ supabaseUrl: url, anonKey }),
@@ -103,7 +112,17 @@ export default async function handler(
   // deployment is missing is infrastructure detail, not user-facing copy.
   const result =
     run === null
-      ? jsonResponse(500, errorEnvelope('INTERNAL_ERROR', resolveRequestId(requestIdHeader)))
+      ? jsonResponse(
+          503,
+          // 503, not 500: this is a deployment that is not ready, not a bug in
+          // the request. The message names the variable because that is the only
+          // thing that fixes it, and "something went wrong" cost a full
+          // debugging round on exactly this failure.
+          errorEnvelope('PROVIDER_UNAVAILABLE', resolveRequestId(requestIdHeader), {
+            message:
+              'This deployment is not connected to its database. Set SUPABASE_URL and SUPABASE_ANON_KEY (or the VITE_ equivalents) and redeploy.',
+          }),
+        )
       : await run({
           method: request.method ?? 'GET',
           params: {},
