@@ -14,12 +14,22 @@ coverage/
 .vitest/
 *.tsbuildinfo
 
-# Environment — only `.env.example` is committed.
-# Public VITE_* values are still secrets-by-convention: they belong in the
-# deployment dashboard, not in Git. Server-side keys must never be committed.
+# Environment.
+#
+# `.env` stays local and is never committed. Server-side keys (service_role,
+# provider API keys) must never be committed under any name.
+#
+# `.env.development` IS committed, deliberately. It holds only the two PUBLIC
+# Supabase values: a project URL and the anon key, which ships inside the
+# browser bundle by design and is bounded by Row Level Security. Keeping them
+# in a tracked file is what stops a fresh checkout or a rebuilt container from
+# starting with sign-in silently unconfigured — a failure that reads as an auth
+# bug and cost several debugging rounds.
 .env
-.env.*
+.env.local
+.env.*.local
 !.env.example
+!.env.development
 
 # Editor and OS noise
 .vscode/*

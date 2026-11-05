@@ -6,6 +6,7 @@ import { StateMessage } from '@/components/ui/StateMessage'
 import { IconInfo } from '@/components/ui/icons'
 import { useAuth } from '@/hooks/useAuth'
 import { AuthError } from '@/services/authClient'
+import { AuthDiagnostics } from '@/components/auth/AuthDiagnostics'
 import {
   hasErrors,
   validateLogin,
@@ -93,6 +94,10 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
+      {/* Renders only when the build is misconfigured or the stored session is
+          unreadable. Silent on a healthy page. */}
+      <AuthDiagnostics />
+
       {failure !== null ? (
         <StateMessage
           tone="error"
