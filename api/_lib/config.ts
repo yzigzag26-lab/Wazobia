@@ -98,12 +98,36 @@ export interface ConfigSources {
   readonly jwtSecret: string | null
 }
 
-const URL_NAMES = ['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'PUBLIC_SUPABASE_URL'] as const
+/*
+ * Resolution order, most explicit first.
+ *
+ * The `VITE_` names are last, and whether to read them server-side deserves an
+ * explanation because it looks like a mistake.
+ *
+ * A Vercel deployment very often has ONLY the `VITE_` pair configured, because
+ * that is what the browser needs and what the setup instructions ask for first.
+ * The server pair is easy to forget — and forgetting it produces an API that is
+ * entirely dead (every endpoint 500s or 401s) while the client signs in
+ * perfectly. That is precisely what happened here: sign-in worked, and every
+ * authenticated call failed.
+ *
+ * Reading them is safe for these two values specifically: both are public by
+ * design and already ship inside the browser bundle. It is NOT safe for secrets,
+ * so no secret name is included — `SUPABASE_JWT_SECRET` has no alias at all.
+ */
+const URL_NAMES = [
+  'SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'PUBLIC_SUPABASE_URL',
+  'VITE_SUPABASE_URL',
+] as const
+
 const KEY_NAMES = [
   'SUPABASE_ANON_KEY',
   'SUPABASE_PUBLISHABLE_KEY',
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'PUBLIC_SUPABASE_ANON_KEY',
+  'VITE_SUPABASE_ANON_KEY',
 ] as const
 
 function sourceOf(names: readonly string[]): string | null {

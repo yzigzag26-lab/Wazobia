@@ -31,6 +31,8 @@ const ENV_NAMES = [
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'PUBLIC_SUPABASE_URL',
   'PUBLIC_SUPABASE_ANON_KEY',
+  'VITE_SUPABASE_URL',
+  'VITE_SUPABASE_ANON_KEY',
 ] as const
 
 function encodePayload(value: unknown): string {
@@ -106,6 +108,29 @@ describe('readServerConfig', () => {
     const config = readServerConfig()
     expect(config.supabaseUrl).toBe('https://aliased.supabase.co')
     expect(config.supabaseAnonKey).toBe(ANON_KEY)
+  })
+
+  it('falls back to the VITE_ pair, which is what a browser-only setup has', () => {
+    /*
+     * The live deployment exactly: the client signs in, so the VITE_ pair is
+     * configured, but the server pair never was. Every endpoint was dead —
+     * including the public /languages — while the app looked fine until it made
+     * its first API call.
+     */
+    process.env['VITE_SUPABASE_URL'] = 'https://bxifjhhgmomiacehngyj.supabase.co'
+    process.env['VITE_SUPABASE_ANON_KEY'] = ANON_KEY
+
+    const config = readServerConfig()
+    expect(config.supabaseUrl).toBe('https://bxifjhhgmomiacehngyj.supabase.co')
+    expect(config.supabaseAnonKey).toBe(ANON_KEY)
+    expect(readConfigSources().anonKey).toBe('VITE_SUPABASE_ANON_KEY')
+  })
+
+  it('prefers the server pair over the VITE_ pair when both exist', () => {
+    process.env['VITE_SUPABASE_URL'] = 'https://vite.supabase.co'
+    process.env['SUPABASE_URL'] = 'https://server.supabase.co'
+
+    expect(readServerConfig().supabaseUrl).toBe('https://server.supabase.co')
   })
 
   it('treats blank and whitespace-only values as unset', () => {
