@@ -60,6 +60,7 @@ const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 const AiPage = lazy(() => import('@/features/ai/AiPage'))
 const TranslatePage = lazy(() => import('@/features/translate/TranslatePage'))
 const DictionaryPage = lazy(() => import('@/features/dictionary/DictionaryPage'))
+const ReviewPage = lazy(() => import('@/features/review/ReviewPage'))
 
 /* Learn — four pillars, each its own tree. */
 const LearnPage = lazy(() => import('@/features/learn/LearnPage'))
@@ -156,6 +157,9 @@ export const routes: RouteObject[] = [
 
           /* ---------------------------------------------- 2. Dictionary */
           { path: 'dictionary', element: page(<DictionaryPage />) },
+          /* Operator surface. Authorisation is enforced server-side; an
+             account without the reviewer role gets a 403, not a hidden page. */
+          { path: 'review', element: page(<ReviewPage />) },
 
           /* --------------------------------------------------- 3. AI */
           { path: 'ai', element: page(<AiPage />) },

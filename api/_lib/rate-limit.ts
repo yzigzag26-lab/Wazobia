@@ -33,6 +33,8 @@ export const RATE_LIMITS = {
   chat: { scope: 'ai_chat', max: 30, windowSeconds: 300 },
   /** Profile reads are cheap, but 120/min still stops a scraper. */
   users_me: { scope: 'users_me', max: 120, windowSeconds: 60 },
+  /** Review writes are cheap but destructive; 60/min is plenty for a human. */
+  dictionary_review: { scope: 'dictionary_review', max: 60, windowSeconds: 60 },
 } as const
 
 export type RateLimitName = keyof typeof RATE_LIMITS

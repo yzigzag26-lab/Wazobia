@@ -89,3 +89,79 @@ export const learningService = {
   getLesson: async (id: string, signal?: AbortSignal): Promise<Lesson> =>
     apiRequest<Lesson>(`/lessons/${encodeURIComponent(id)}`, { signal }),
 }
+
+/* -------------------------------------------------------------------------- */
+/* Dictionary review (reviewer / admin only)                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One row of the operator queue. `quality_flag` is computed in the database
+ * (`dictionary_review_candidates`), so the UI never invents a verdict about
+ * whether a headword is well-formed.
+ */
+export interface ReviewCandidate {
+  readonly id: string
+  readonly language_code: string
+  readonly headword: string
+  readonly part_of_speech: string | null
+  readonly gloss: string | null
+  readonly review_status: string
+  readonly quality_flag: string
+  readonly source_name: string | null
+}
+
+export interface ReviewQueue {
+  readonly language_code: string
+  readonly candidates: readonly ReviewCandidate[]
+  readonly limit: number
+}
+
+export interface BulkReviewOutcome {
+  readonly language_code: string
+  readonly decision: 'approved' | 'rejected'
+  readonly only_clean: boolean
+  readonly reviewed: number
+  readonly skipped: number
+  readonly skipped_reasons: readonly string[]
+  readonly skipped_reasons_truncated: boolean
+}
+
+/**
+ * Review is authorised in the database, not here. These calls carry the user's
+ * token; a non-reviewer gets 403 from Postgres even if they invoke them
+ * directly. Hiding the page is an affordance, not the control.
+ */
+export const reviewService = {
+  queue: async (
+    language: string,
+    limit: number,
+    accessToken: string | undefined,
+  ): Promise<ReviewQueue> =>
+    apiRequest<ReviewQueue>(
+      `/dictionary/review?language=${encodeURIComponent(language)}&limit=${String(limit)}`,
+      { accessToken },
+    ),
+
+  decide: async (
+    entryId: string,
+    decision: 'approved' | 'rejected' | 'pending',
+    accessToken: string | undefined,
+  ): Promise<{ id: string; review_status: string; reviewed_at: string | null }> =>
+    apiRequest('/dictionary/review', {
+      method: 'POST',
+      body: { entry_id: entryId, decision },
+      accessToken,
+    }),
+
+  bulk: async (
+    language: string,
+    decision: 'approved' | 'rejected',
+    onlyClean: boolean,
+    accessToken: string | undefined,
+  ): Promise<BulkReviewOutcome> =>
+    apiRequest<BulkReviewOutcome>('/dictionary/review', {
+      method: 'POST',
+      body: { mode: 'bulk', language, decision, only_clean: onlyClean, limit: 2000 },
+      accessToken,
+    }),
+}
