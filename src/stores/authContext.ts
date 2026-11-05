@@ -1,6 +1,6 @@
 import { createContext } from 'react'
 import type { AuthSession } from '@/services/authClient'
-import type { Profile } from '@/services/contracts/endpoints'
+import type { Profile, ProfileUpdate } from '@/services/contracts/endpoints'
 
 /**
  * Auth context — object only, so the provider file exports a component alone and
@@ -48,10 +48,24 @@ export interface AuthValue {
    */
   readonly getAccessToken: () => Promise<string | undefined>
   readonly signIn: (email: string, password: string) => Promise<void>
-  readonly signUp: (email: string, password: string, displayName?: string) => Promise<void>
+  readonly signUp: (
+    email: string,
+    password: string,
+    displayName?: string,
+    username?: string,
+  ) => Promise<void>
   readonly signOut: () => Promise<void>
-  /** Re-read `/users/me`. Call after editing a display name. */
+  /** Re-read `/users/me`. */
   readonly refreshProfile: () => Promise<void>
+  /**
+   * Save details to the ACCOUNT and adopt the server's stored values.
+   *
+   * Resolves with the row the database now holds, which is what the UI must
+   * render. Rejects with a `WazobiaApiError` so the form can show the server's
+   * validation message — including "that username is taken", which no client
+   * can decide on its own.
+   */
+  readonly updateProfile: (update: ProfileUpdate) => Promise<Profile>
 }
 
 export const AuthContext = createContext<AuthValue | null>(null)

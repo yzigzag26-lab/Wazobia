@@ -40,11 +40,11 @@ const INITIAL: SignUpValues = {
  *
  * ## What is sent and what is not
  *
- * Supabase receives an email and a password. The display name goes into user
- * metadata, where the `handle_new_user` trigger reads it to populate
- * `profiles.display_name`. The username field is kept as a *local* handle only:
- * there is no `username` column, and inventing one here would store a value
- * nobody can query.
+ * Supabase receives an email and a password. The display name and username go
+ * into user metadata, where the `handle_new_user` trigger reads them to populate
+ * `profiles.display_name` and `profiles.username` (columns added in migration
+ * 0006). Everything the form collects is therefore readable by the rest of the
+ * app — previously the username was collected, validated and then discarded.
  */
 export function SignUpForm() {
   const [values, setValues] = useState<SignUpValues>(INITIAL)
@@ -96,7 +96,15 @@ export function SignUpForm() {
 
     setSubmitting(true)
     try {
-      await signUp(values.email.trim(), values.password, values.fullName.trim())
+      // The username is sent too. It used to be dropped on the floor: the form
+      // validated it, then had nowhere to put it, so every account was created
+      // with no handle and Profile showed "No username set" forever.
+      await signUp(
+        values.email.trim(),
+        values.password,
+        values.fullName.trim(),
+        values.username.trim(),
+      )
       setSubmitted(true)
     } catch (error) {
       setFailure(

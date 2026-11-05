@@ -8,7 +8,8 @@ import {
 } from '@/services/authClient'
 import { userService } from '@/services/api'
 import { WazobiaApiError } from '@/services/client'
-import type { Profile } from '@/services/contracts/endpoints'
+import type { Profile, ProfileUpdate } from '@/services/contracts/endpoints'
+import { useProfile } from '@/hooks/useProfile'
 import { AuthContext, type AuthStatus, type AuthValue } from './authContext'
 
 /**
@@ -82,6 +83,9 @@ function withProfileTimeout<T>(work: Promise<T>): Promise<T> {
 }
 
 export function AuthProvider({ children }: { readonly children: ReactNode }) {
+  // The device-local store still holds the onboarding answers (there is no
+  // server table for them) and a mirror of the name used by Learn surfaces.
+  const { setDetails: setLocalDetails } = useProfile()
   const [state, setState] = useState<State>(INITIAL)
   const [tick, setTick] = useState(0)
   // Guards against two requests refreshing the same expired token at once.
@@ -255,11 +259,12 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
   )
 
   const signUp = useCallback(
-    async (email: string, password: string, displayName?: string) => {
+    async (email: string, password: string, displayName?: string, username?: string) => {
       const session = await authService.signUp({
         email,
         password,
         ...(displayName === undefined ? {} : { displayName }),
+        ...(username === undefined ? {} : { username }),
       })
       setState({ status: 'signed-in', session, profile: null, sessionError: null })
       await fetchProfile(session)
@@ -276,6 +281,38 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     await fetchProfile(state.session)
   }, [fetchProfile, state.session])
 
+  /**
+   * Save details to the account and adopt whatever the server stored.
+   *
+   * The returned profile is the server's row, not the values that were sent.
+   * That distinction is the whole point: the previous profile form wrote to
+   * `localStorage` and then rendered its own input back as if it were saved, so
+   * it could report success for a write that never happened.
+   */
+  const updateProfile = useCallback(
+    async (update: ProfileUpdate): Promise<Profile> => {
+      const token = await getAccessToken()
+      if (token === undefined) {
+        throw new Error('You need to be signed in to save changes.')
+      }
+
+      const saved = await userService.update(update, token)
+      setState((current) => ({ ...current, profile: saved, sessionError: null }))
+      // Keep the device-local mirror in step so the Learn surfaces, which read
+      // the learner's name from it, do not show a stale one.
+      setLocalDetails({
+        fullName: saved.display_name,
+        username: saved.username ?? '',
+      })
+      return saved
+    },
+    // `setLocalDetails` is a `useCallback` with no dependencies inside
+    // ProfileProvider, so its identity is stable and adding it cannot cause a
+    // re-render loop. Listing it is honest; suppressing the rule would hide a
+    // real dependency if that ever stopped being true.
+    [getAccessToken, setLocalDetails],
+  )
+
   const value = useMemo<AuthValue>(
     () => ({
       status: state.status,
@@ -289,8 +326,18 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       signUp,
       signOut,
       refreshProfile,
+      updateProfile,
     }),
-    [state, accessToken, getAccessToken, signIn, signUp, signOut, refreshProfile],
+    [
+      state,
+      accessToken,
+      getAccessToken,
+      signIn,
+      signUp,
+      signOut,
+      refreshProfile,
+      updateProfile,
+    ],
   )
 
   // Keep the token fresh while a page is open. 60 s is well inside the margin

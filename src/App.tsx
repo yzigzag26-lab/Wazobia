@@ -21,9 +21,15 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Tooltip.Provider delayDuration={400} skipDelayDuration={200}>
-        {/* Auth sits outermost: the application area requires a session, and
-            there is no anonymous or guest alternative to fall back to. */}
-        <AuthProvider>
+        {/*
+          Profile sits OUTSIDE Auth because the auth store mirrors the account's
+          display name into it, so that Learn surfaces reading the learner's name
+          stay in step with the server. Auth still decides access: the
+          application area requires a session and there is no anonymous
+          alternative to fall back to.
+        */}
+        <ProfileProvider>
+          <AuthProvider>
           <LanguagePreferenceProvider>
             {/*
               Theme sits outside the router so the palette is applied before any
@@ -33,12 +39,11 @@ export function App() {
               resolved from the onboarding answers the session owns.
             */}
               <ThemeProvider>
-                <ProfileProvider>
-                  <RouterProvider router={router} />
-                </ProfileProvider>
+                <RouterProvider router={router} />
               </ThemeProvider>
           </LanguagePreferenceProvider>
-        </AuthProvider>
+          </AuthProvider>
+        </ProfileProvider>
       </Tooltip.Provider>
     </QueryClientProvider>
   )

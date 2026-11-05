@@ -28,15 +28,31 @@ export interface ListLanguagesResponse {
 }
 
 /* -------------------------------------------------------------------------- */
-/* GET /api/v1/users/me                                                        */
+/* GET, PATCH /api/v1/users/me                                                 */
 /* -------------------------------------------------------------------------- */
 
 export interface Profile {
   readonly id: string
   readonly display_name: string
+  /** Public handle, `null` when never chosen. */
+  readonly username: string | null
   readonly preferred_language: string
+  /** The address on the verified session, not a copy stored in `profiles`. */
+  readonly email: string | null
   readonly roles: readonly string[]
   readonly created_at: string
+}
+
+/**
+ * Fields a caller may change on their own profile.
+ *
+ * Allowlisted server-side too — an unknown key is rejected, not silently
+ * dropped, so a client cannot believe it changed something it did not.
+ */
+export interface ProfileUpdate {
+  readonly display_name?: string
+  readonly username?: string | null
+  readonly preferred_language?: string | null
 }
 
 /* -------------------------------------------------------------------------- */
@@ -161,7 +177,16 @@ export interface Lesson {
  */
 export const ENDPOINT_ERRORS: Readonly<Record<string, readonly ApiErrorCode[]>> = {
   'GET /api/v1/languages': ['INTERNAL_ERROR'],
-  'GET /api/v1/users/me': ['UNAUTHENTICATED', 'FORBIDDEN'],
+  'GET /api/v1/users/me': ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND'],
+  'PATCH /api/v1/users/me': [
+    'VALIDATION_ERROR',
+    'UNAUTHENTICATED',
+    'FORBIDDEN',
+    'NOT_FOUND',
+    'CONFLICT',
+    'SEMANTIC_ERROR',
+    'RATE_LIMITED',
+  ],
   'POST /api/v1/ai/chat': [
     'VALIDATION_ERROR',
     'UNAUTHENTICATED',

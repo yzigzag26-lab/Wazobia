@@ -27,9 +27,25 @@
 export interface Profile {
   readonly id: string
   readonly display_name: string
+  /**
+   * Public handle, `null` when never chosen.
+   *
+   * Not coerced to `''`: "no username" and "username is empty" are different
+   * states, and the profile page renders them differently.
+   */
+  readonly username: string | null
   readonly preferred_language: string
+  /** The verified address from the token, not a copy in `profiles`. */
+  readonly email: string | null
   readonly roles: readonly string[]
   readonly created_at: string
+}
+
+/** Fields a caller may change on their own profile. */
+export interface ProfileUpdate {
+  readonly display_name?: string | undefined
+  readonly username?: string | null | undefined
+  readonly preferred_language?: string | null | undefined
 }
 
 export interface ProfileRepositoryConfig {
@@ -39,17 +55,48 @@ export interface ProfileRepositoryConfig {
 
 export interface UserLookup {
   /** `GET /api/v1/users/me` payload. `null` when the profile row is missing. */
-  getProfile(callerId: string, authorization: string | null): Promise<Profile | null>
+  getProfile(
+    callerId: string,
+    authorization: string | null,
+    email?: string | null,
+  ): Promise<Profile | null>
   /** Roles for the caller. Empty array when none — never a 403-in-disguise. */
   getRoles(callerId: string, authorization: string | null): Promise<readonly string[]>
+  /**
+   * Write the editable fields and return the refreshed profile.
+   *
+   * Uses the caller's own token, so `profiles_update_own` decides the row. This
+   * cannot write another user's profile even if given their id, because the
+   * policy requires `auth.uid() = id` and the id in the URL is the caller's.
+   */
+  updateProfile(
+    callerId: string,
+    authorization: string | null,
+    update: ProfileUpdate,
+    email?: string | null,
+  ): Promise<Profile | null>
+}
+
+/** Thrown when the database rejects a write for a reason the caller caused. */
+export class ProfileWriteError extends Error {
+  constructor(
+    readonly kind: 'CONFLICT' | 'INVALID',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'ProfileWriteError'
+  }
 }
 
 interface ProfileRow {
   readonly id: string
   readonly display_name: string | null
+  readonly username: string | null
   readonly preferred_language: string | null
   readonly created_at: string
 }
+
+const PROFILE_COLUMNS = 'id,display_name,username,preferred_language,created_at'
 
 interface RoleRow {
   readonly role: string
@@ -75,10 +122,11 @@ export function createRestUserLookup(config: ProfileRepositoryConfig): UserLooku
   async function getProfile(
     callerId: string,
     authorization: string | null,
+    email: string | null = null,
   ): Promise<Profile | null> {
     const url =
       `${base}/rest/v1/profiles` +
-      `?select=id,display_name,preferred_language,created_at` +
+      `?select=${PROFILE_COLUMNS}` +
       `&id=eq.${encodeURIComponent(callerId)}&limit=1`
 
     const response = await fetch(url, { headers: headers(authorization) })
@@ -97,7 +145,80 @@ export function createRestUserLookup(config: ProfileRepositoryConfig): UserLooku
       // The column allows NULL in SQL but the contract says string. An empty
       // display name is honest; a fabricated one from the email would not be.
       display_name: row.display_name ?? '',
+      username: row.username,
       preferred_language: row.preferred_language ?? '',
+      // Taken from the verified token, which is the authority for the address.
+      // `profiles` deliberately has no email column to fall out of sync with it.
+      email,
+      roles,
+      created_at: row.created_at,
+    }
+  }
+
+  async function updateProfile(
+    callerId: string,
+    authorization: string | null,
+    update: ProfileUpdate,
+    email: string | null = null,
+  ): Promise<Profile | null> {
+    // Build the body from an allowlist. Spreading the caller's object would let
+    // a future field reach the database without a decision being made about it.
+    const body: Record<string, unknown> = {}
+    if (update.display_name !== undefined) body['display_name'] = update.display_name
+    if (update.username !== undefined) body['username'] = update.username
+    if (update.preferred_language !== undefined) {
+      body['preferred_language'] = update.preferred_language
+    }
+
+    if (Object.keys(body).length === 0) {
+      // Nothing to write. Re-read rather than issuing an empty PATCH, which
+      // PostgREST treats as a no-op with a 200 that would look like success.
+      return getProfile(callerId, authorization, email)
+    }
+
+    const url = `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(callerId)}`
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        ...headers(authorization),
+        'content-type': 'application/json',
+        // Return the row so the caller gets one round trip, and so a request
+        // that matched no row (RLS, or a missing profile) is detectable: the
+        // array comes back empty.
+        prefer: 'return=representation',
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (response.status === 409) {
+      // The unique index on `lower(username)` is the only conflict this table
+      // has, and the caller needs to know it is the handle they chose.
+      throw new ProfileWriteError('CONFLICT', 'That username is already taken.')
+    }
+    if (response.status === 400) {
+      // A CHECK violation. The endpoint validates first, so reaching this means
+      // a rule exists in the database that the API does not enforce; surfacing
+      // it is better than a generic 500.
+      throw new ProfileWriteError('INVALID', 'That change was rejected as invalid.')
+    }
+    if (!response.ok) {
+      throw new Error(`profiles write failed with ${response.status}`)
+    }
+
+    const rows = (await response.json()) as ProfileRow[]
+    const row = rows[0]
+    // No row returned means the UPDATE matched nothing: RLS hid it or the
+    // profile does not exist. Never report success for a write that did nothing.
+    if (row === undefined) return null
+
+    const roles = await getRoles(callerId, authorization)
+    return {
+      id: row.id,
+      display_name: row.display_name ?? '',
+      username: row.username,
+      preferred_language: row.preferred_language ?? '',
+      email,
       roles,
       created_at: row.created_at,
     }
@@ -120,7 +241,7 @@ export function createRestUserLookup(config: ProfileRepositoryConfig): UserLooku
     return rows.map((row) => row.role).filter((role) => typeof role === 'string')
   }
 
-  return { getProfile, getRoles }
+  return { getProfile, getRoles, updateProfile }
 }
 
 /**
@@ -133,5 +254,6 @@ export function createEmptyUserLookup(): UserLookup {
   return {
     getProfile: async () => null,
     getRoles: async () => [],
+    updateProfile: async () => null,
   }
 }

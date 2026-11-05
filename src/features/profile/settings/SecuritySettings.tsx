@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -21,7 +22,8 @@ import { IconInfo, IconLock } from '@/components/ui/icons'
  *    the settings that will exist, without pretending they work now.
  */
 export default function SecuritySettings() {
-  const { details, resetProfile } = useProfile()
+  const { profile } = useAuth()
+  const { resetProfile } = useProfile()
   const [confirming, setConfirming] = useState(false)
 
   return (
@@ -83,7 +85,7 @@ export default function SecuritySettings() {
               Signed in as
             </dt>
             <dd className="mt-1 text-[0.875rem] text-ink-900">
-              {details.email || 'No email on this account'}
+              {profile?.email ?? 'No email on this account'}
             </dd>
           </div>
           <div className="rounded-[var(--radius-md)] border border-paper-200 bg-paper-50 px-3 py-2.5">

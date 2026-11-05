@@ -83,15 +83,17 @@ function renderRoute(path: string) {
   const result = render(
     <QueryClientProvider client={queryClient}>
       <Tooltip.Provider>
-        <AuthProvider>
-          <LanguagePreferenceProvider>
-            <ThemeProvider>
-              <ProfileProvider>
+        {/* Profile outside Auth, matching `App.tsx`: the auth store mirrors the
+            account's display name into the device-local store. */}
+        <ProfileProvider>
+          <AuthProvider>
+            <LanguagePreferenceProvider>
+              <ThemeProvider>
                 <RouterProvider router={router} />
-              </ProfileProvider>
-            </ThemeProvider>
-          </LanguagePreferenceProvider>
-        </AuthProvider>
+              </ThemeProvider>
+            </LanguagePreferenceProvider>
+          </AuthProvider>
+        </ProfileProvider>
       </Tooltip.Provider>
     </QueryClientProvider>,
   )
@@ -263,11 +265,26 @@ describe('application routes render', () => {
     expect(errors).toEqual([])
   })
 
-  it('renders the profile page without claiming a server save', async () => {
+  it('renders the profile page as account-backed, not browser-local', async () => {
+    /*
+     * This test previously asserted the opposite: that the page said details
+     * were "stored in this browser". That copy was accurate at the time and was
+     * the bug — a signed-in user's name and handle lived on the account, while
+     * the page read a localStorage entry registration never wrote. So it showed
+     * "No username set" and "No email set" for an account that had both.
+     *
+     * Asserting the corrected claim is what keeps the two in step.
+     */
     seedYorubaProfile()
     const { errors } = renderRoute('/app/profile')
     expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
-    expect(screen.getByText(/stored in this browser/i)).toBeInTheDocument()
+
+    // The account is the source of truth, and the page says so.
+    expect(screen.getAllByText(/follow you to any device/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/stored in this browser/i)).not.toBeInTheDocument()
+    // The old header badge claimed an unverified address even for accounts that
+    // never set one. Neither state should appear on a page backed by the server.
+    expect(screen.queryByText(/Email unverified/i)).not.toBeInTheDocument()
     expect(errors).toEqual([])
   })
 
