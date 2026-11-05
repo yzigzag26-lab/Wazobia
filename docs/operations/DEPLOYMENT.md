@@ -147,6 +147,30 @@ The second check is the important one. **A `200` on the unauthenticated
 translate call means the deployment is not protected** — no verification
 material is configured at all.
 
+## Required environment variables, in one place
+
+Set these in **Vercel → Settings → Environment Variables** for Production and
+Preview, then redeploy. That is the whole list the API needs:
+
+| Name | Required | Value |
+|---|---|---|
+| `SUPABASE_URL` | **yes** | `https://bxifjhhgmomiacehngyj.supabase.co` |
+| `SUPABASE_ANON_KEY` | **yes** | the anon `public` key |
+| `VITE_SUPABASE_URL` | yes, for the browser | same as `SUPABASE_URL` |
+| `VITE_SUPABASE_ANON_KEY` | yes, for the browser | same anon key |
+| `SUPABASE_JWT_SECRET` | **no** — only for legacy HS256 projects | *leave unset* |
+
+**`SUPABASE_JWT_SECRET` is not needed and does not help.** This project signs
+access tokens with ES256, which an HMAC secret cannot verify. Setting it is what
+made a live deployment report `scheme: "hs256"` and `status: "ok"` while rejecting
+every real token.
+
+`SUPABASE_URL` is now **derived from `SUPABASE_ANON_KEY`** when it is not set
+explicitly, because an anon key is a JWT carrying the project reference as
+`ref`. So configuring the key alone is sufficient — the URL is recovered. The
+common aliases `NEXT_PUBLIC_SUPABASE_*` and `PUBLIC_SUPABASE_*` are also read.
+An explicit `SUPABASE_URL` always wins.
+
 ## Diagnosing sign-in
 
 **Start here. Do not read the JavaScript console first.**
@@ -167,6 +191,15 @@ The `status` field is the answer:
 `checks.jwks` reports whether the key set was actually fetched, and
 `checks.jwks_key_count` how many usable keys it carried. Both are public facts;
 no key material is ever returned.
+
+`problems` is the actionable list — one sentence per thing to fix, naming the
+variable. `resolved_from` names the variable that supplied each value, which is
+how a spelling mismatch becomes obvious.
+
+**A secret with no project URL is `degraded`, never `ok`.** That combination
+cannot confirm which signing algorithm the project uses, so claiming readiness
+would be a guess. This rule exists because the opposite was true during a real
+outage.
 
 ### The failure this replaces
 
