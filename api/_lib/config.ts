@@ -16,8 +16,11 @@ export interface ServerConfig {
   readonly supabaseUrl: string | null
   readonly supabaseAnonKey: string | null
   /**
-   * The project's JWT secret, used to verify access tokens locally.
-   * Without it, protected endpoints cannot identify anyone and must refuse.
+   * Legacy shared HMAC secret, used only to verify HS256 tokens.
+   *
+   * `null` is normal and correct for a project on ES256 signing, which has no
+   * shared secret at all. Treating its absence as "cannot authenticate" was the
+   * bug that made every protected call return 401 on an ES256 project.
    */
   readonly supabaseJwtSecret: string | null
 }
@@ -37,9 +40,27 @@ export function readServerConfig(): ServerConfig {
   }
 }
 
-/** True when tokens can be verified at all. */
+/**
+ * The project's JWKS document, which publishes the public half of the ES256
+ * signing key.
+ *
+ * Derived from the project URL for the same reason as the issuer below: one
+ * source of configuration instead of two that can disagree.
+ */
+export function jwksUrlFor(config: ServerConfig): string | undefined {
+  if (config.supabaseUrl === null) return undefined
+  return `${config.supabaseUrl.replace(/\/$/, '')}/auth/v1/.well-known/jwks.json`
+}
+
+/**
+ * True when tokens can be verified at all.
+ *
+ * Either scheme is sufficient: an HMAC secret covers HS256, a project URL
+ * covers ES256 (via JWKS). Requiring the secret specifically is what excluded
+ * every ES256 deployment.
+ */
 export function canAuthenticate(config: ServerConfig): boolean {
-  return config.supabaseJwtSecret !== null
+  return config.supabaseJwtSecret !== null || config.supabaseUrl !== null
 }
 
 /**

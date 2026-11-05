@@ -13,7 +13,7 @@ import { createRestUserLookup, createEmptyUserLookup } from '../../_lib/auth/use
 import { createTokenVerifier } from '../../_lib/auth/verify.js'
 import { protect } from '../../_lib/auth/guard.js'
 import { createRestRateLimiter, createNullRateLimiter } from '../../_lib/rate-limit.js'
-import { readServerConfig, issuerFor } from '../../_lib/config.js'
+import { readServerConfig, issuerFor, jwksUrlFor, canAuthenticate } from '../../_lib/config.js'
 import { jsonResponse } from '../../_lib/http.js'
 import { errorEnvelope } from '../../_lib/envelope.js'
 import { resolveRequestId } from '../../_lib/request-id.js'
@@ -32,7 +32,10 @@ export default async function handler(
   const httpRequest = toHttpRequest(request)
   const requestId = resolveRequestId(httpRequest.requestIdHeader)
 
-  if (config.supabaseJwtSecret === null) {
+  // Either signing scheme is enough: an HMAC secret covers HS256, the project
+  // URL covers ES256 via JWKS. Requiring the secret specifically is what made
+  // every protected call 401 on an ES256 project.
+  if (!canAuthenticate(config)) {
     send(
       response,
       jsonResponse(
@@ -47,6 +50,7 @@ export default async function handler(
 
   const verify = createTokenVerifier({
     jwtSecret: config.supabaseJwtSecret,
+    jwksUrl: jwksUrlFor(config),
     issuer: issuerFor(config),
   })
 
