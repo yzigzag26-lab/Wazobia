@@ -15,6 +15,7 @@ import { createRestDictionaryRepository } from '../../_lib/dictionary/repository
 import { jsonResponse } from '../../_lib/http.js'
 import { errorEnvelope } from '../../_lib/envelope.js'
 import { resolveRequestId } from '../../_lib/request-id.js'
+import { readServerConfig } from '../../_lib/config.js'
 
 interface PlatformRequest {
   readonly method?: string | undefined
@@ -54,9 +55,12 @@ function queryParams(request: PlatformRequest): Record<string, string> {
 }
 
 function buildHandler() {
-  const url = process.env['SUPABASE_URL']?.trim()
-  const anonKey = process.env['SUPABASE_ANON_KEY']?.trim()
-  if (!url || !anonKey) return null
+  // Same reasoning as `api/v1/languages.ts`: configuration must come from the
+  // one module that knows every accepted spelling and derivation.
+  const config = readServerConfig()
+  const url = config.supabaseUrl
+  const anonKey = config.supabaseAnonKey
+  if (url === null || anonKey === null) return null
 
   return createDictionarySearchHandler(
     createRestDictionaryRepository({ supabaseUrl: url, anonKey }),
@@ -72,7 +76,17 @@ export default async function handler(
 
   const result =
     run === null
-      ? jsonResponse(500, errorEnvelope('INTERNAL_ERROR', resolveRequestId(requestIdHeader)))
+      ? jsonResponse(
+          503,
+          // 503, not 500: this is a deployment that is not ready, not a bug in
+          // the request. The message names the variable because that is the only
+          // thing that fixes it, and "something went wrong" cost a full
+          // debugging round on exactly this failure.
+          errorEnvelope('PROVIDER_UNAVAILABLE', resolveRequestId(requestIdHeader), {
+            message:
+              'This deployment is not connected to its database. Set SUPABASE_URL and SUPABASE_ANON_KEY (or the VITE_ equivalents) and redeploy.',
+          }),
+        )
       : await run({
           method: request.method ?? 'GET',
           params: {},

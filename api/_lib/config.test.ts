@@ -163,3 +163,53 @@ describe('readConfigSources', () => {
     expect(serialised).not.toContain(ANON_KEY)
   })
 })
+
+describe('no endpoint reads the environment directly', () => {
+  it('every file under api/v1 reads configuration through config.ts', async () => {
+    /*
+     * This is the bug that survived the previous fix.
+     *
+     * `config.ts` learned to read aliases and derive the URL from the anon key,
+     * but `api/v1/languages.ts` and `api/v1/dictionary/search.ts` read
+     * `process.env['SUPABASE_URL']` themselves. So the fix worked everywhere
+     * except the two endpoints that did not use it — and the public catalogue
+     * stayed down with a 500 while health reported `ok`.
+     *
+     * A duplicated read is invisible in review and invisible to any test that
+     * exercises one endpoint at a time. This test is a structural rule instead:
+     * configuration has one entry point.
+     */
+    const { readdirSync, readFileSync } = await import('node:fs')
+    const { join, resolve } = await import('node:path')
+
+    const root = resolve(import.meta.dirname, '..')
+    const entryPoints: string[] = []
+
+    function walk(dir: string): void {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) walk(full)
+        else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) {
+          entryPoints.push(full)
+        }
+      }
+    }
+    walk(join(root, 'v1'))
+
+    expect(entryPoints.length).toBeGreaterThan(0)
+
+    const offenders: string[] = []
+    for (const file of entryPoints) {
+      const source = readFileSync(file, 'utf8')
+      // `VERCEL_GIT_COMMIT_SHA` is allowed: it is a platform build identifier,
+      // not application configuration, and has no place in `ServerConfig`.
+      const reads = source.match(/process\.env\[[^\]]+\]/g) ?? []
+      for (const read of reads) {
+        if (read.includes('VERCEL_GIT_COMMIT_SHA')) continue
+        offenders.push(`${file.replace(root, 'api')}: ${read}`)
+      }
+    }
+
+    expect(offenders).toEqual([])
+  })
+})
