@@ -25,17 +25,135 @@ export interface ServerConfig {
   readonly supabaseJwtSecret: string | null
 }
 
-function read(name: string): string | null {
+function readOne(name: string): string | null {
   const value = process.env[name]
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed.length === 0 ? null : trimmed
 }
 
-export function readServerConfig(): ServerConfig {
+/**
+ * Read the first configured name from a list of aliases.
+ *
+ * The same two public values reach a deployment under different names depending
+ * on who set them up: this project's own convention is `SUPABASE_*`, a Next.js
+ * habit is `NEXT_PUBLIC_*`, and some dashboards use `PUBLIC_*`. They are the
+ * same value, and refusing to read an alias produces a deployment that looks
+ * configured and is not — which is exactly the failure this module exists to
+ * make impossible.
+ */
+function read(...names: string[]): string | null {
+  for (const name of names) {
+    const value = readOne(name)
+    if (value !== null) return value
+  }
+  return null
+}
+
+/**
+ * Recover the project URL from an anon key.
+ *
+ * A Supabase anon key is a JWT carrying a `ref` claim — the project reference —
+ * and the project URL is `https://<ref>.supabase.co`. Deriving it means a
+ * deployment that configured only the key still works, instead of silently
+ * losing token verification and database access.
+ *
+ * Returns `null` for the newer `sb_publishable_…` keys, which are opaque
+ * strings and carry no reference.
+ */
+export function projectUrlFromAnonKey(anonKey: string): string | null {
+  const parts = anonKey.split('.')
+  if (parts.length !== 3) return null
+
+  const encodedPayload = parts[1]
+  if (typeof encodedPayload !== 'string') return null
+
+  // Decode locally rather than importing `auth/verify.js`: `config.ts` is
+  // imported by nearly every endpoint, and keeping it dependency-free avoids a
+  // cycle where `verify.ts` is reachable before configuration is read.
+  const normalised = encodedPayload.replaceAll('-', '+').replaceAll('_', '/')
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(normalised)) return null
+  const padded = normalised.padEnd(normalised.length + ((4 - (normalised.length % 4)) % 4), '=')
+
+  try {
+    const parsed: unknown = JSON.parse(globalThis.atob(padded))
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const ref = (parsed as { ref?: unknown }).ref
+    if (typeof ref !== 'string' || !/^[a-z0-9]{20}$/.test(ref)) return null
+    return `https://${ref}.supabase.co`
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Which environment variable supplied each value.
+ *
+ * Names, never values: this is what turns "it is configured" into "it is
+ * configured as X", which is the fact needed when a deployment reads nothing.
+ */
+export interface ConfigSources {
+  readonly projectUrl: string | null
+  readonly anonKey: string | null
+  readonly jwtSecret: string | null
+}
+
+/*
+ * Resolution order, most explicit first.
+ *
+ * The `VITE_` names are last, and whether to read them server-side deserves an
+ * explanation because it looks like a mistake.
+ *
+ * A Vercel deployment very often has ONLY the `VITE_` pair configured, because
+ * that is what the browser needs and what the setup instructions ask for first.
+ * The server pair is easy to forget — and forgetting it produces an API that is
+ * entirely dead (every endpoint 500s or 401s) while the client signs in
+ * perfectly. That is precisely what happened here: sign-in worked, and every
+ * authenticated call failed.
+ *
+ * Reading them is safe for these two values specifically: both are public by
+ * design and already ship inside the browser bundle. It is NOT safe for secrets,
+ * so no secret name is included — `SUPABASE_JWT_SECRET` has no alias at all.
+ */
+const URL_NAMES = [
+  'SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'PUBLIC_SUPABASE_URL',
+  'VITE_SUPABASE_URL',
+] as const
+
+const KEY_NAMES = [
+  'SUPABASE_ANON_KEY',
+  'SUPABASE_PUBLISHABLE_KEY',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'PUBLIC_SUPABASE_ANON_KEY',
+  'VITE_SUPABASE_ANON_KEY',
+] as const
+
+function sourceOf(names: readonly string[]): string | null {
+  for (const name of names) {
+    if (readOne(name) !== null) return name
+  }
+  return null
+}
+
+export function readConfigSources(): ConfigSources {
   return {
-    supabaseUrl: read('SUPABASE_URL'),
-    supabaseAnonKey: read('SUPABASE_ANON_KEY'),
+    projectUrl: sourceOf(URL_NAMES),
+    anonKey: sourceOf(KEY_NAMES),
+    jwtSecret: sourceOf(['SUPABASE_JWT_SECRET']),
+  }
+}
+
+export function readServerConfig(): ServerConfig {
+  const anonKey = read(...KEY_NAMES)
+
+  // Explicit configuration wins; the key's own `ref` claim is the fallback.
+  const supabaseUrl = read(...URL_NAMES) ?? (anonKey === null ? null : projectUrlFromAnonKey(anonKey))
+
+  return {
+    supabaseUrl,
+    supabaseAnonKey: anonKey,
     supabaseJwtSecret: read('SUPABASE_JWT_SECRET'),
   }
 }

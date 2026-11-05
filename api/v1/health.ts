@@ -11,7 +11,7 @@
  */
 
 import { createHealthHandler } from '../_lib/health/handler.js'
-import { readServerConfig } from '../_lib/config.js'
+import { readServerConfig, readConfigSources } from '../_lib/config.js'
 import { toHttpRequest, send, type PlatformRequest, type PlatformResponse } from '../_lib/platform.js'
 
 export default async function handler(
@@ -22,6 +22,7 @@ export default async function handler(
 
   const handle = createHealthHandler({
     config: readServerConfig(),
+    sources: readConfigSources(),
     // Vercel exposes the commit SHA per deployment. It is what tells a user
     // whether the tab they are looking at is running current code — the exact
     // confusion caused by two bundles in one console.

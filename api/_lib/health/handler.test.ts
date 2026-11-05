@@ -90,6 +90,64 @@ describe('buildHealthReport', () => {
     expect(report.summary).toContain('anon key')
   })
 
+  it('does NOT report ok for a secret with no project URL', () => {
+    /*
+     * The live outage, exactly.
+     *
+     * Vercel had SUPABASE_JWT_SECRET and neither SUPABASE_URL nor
+     * SUPABASE_ANON_KEY. Health answered `status: "ok"`, `scheme: "hs256"`,
+     * "Ready" — while every authenticated request returned 401, because the
+     * project signs ES256 and the JWKS URL derives from a URL that was never
+     * set. Both statements were "consistent" only because nothing checked.
+     */
+    const report = buildHealthReport({
+      config: {
+        supabaseUrl: null,
+        supabaseAnonKey: null,
+        supabaseJwtSecret: 'the-legacy-secret',
+      },
+      jwks: { reachable: false, keyCount: 0, algorithms: [] },
+    })
+
+    expect(report.status).not.toBe('ok')
+    expect(report.status).toBe('degraded')
+    expect(report.summary).not.toContain('Ready')
+    // The fix must be stated, not implied.
+    expect(report.problems.join(' ')).toContain('SUPABASE_URL')
+    expect(report.problems.join(' ')).toContain('ES256')
+  })
+
+  it('reports ok for a secret only when a project URL confirms the scheme', () => {
+    const report = buildHealthReport({
+      config: config({ supabaseJwtSecret: 'the-legacy-secret' }),
+      jwks: jwksDown,
+    })
+    // A URL is present but the JWKS is not, so HS256 may legitimately be right.
+    expect(report.status).toBe('ok')
+    expect(report.scheme).toBe('hs256')
+    expect(report.problems).toHaveLength(0)
+  })
+
+  it('lists what to fix, as data rather than prose', () => {
+    const report = buildHealthReport({
+      config: { supabaseUrl: null, supabaseAnonKey: null, supabaseJwtSecret: null },
+      jwks: { reachable: false, keyCount: 0, algorithms: [] },
+    })
+    expect(report.problems.length).toBeGreaterThan(0)
+    expect(report.problems.some((p) => p.includes('SUPABASE_URL'))).toBe(true)
+    expect(report.problems.some((p) => p.includes('SUPABASE_ANON_KEY'))).toBe(true)
+  })
+
+  it('names which environment variable supplied each value', () => {
+    const report = buildHealthReport({
+      config: config(),
+      jwks: jwksOk,
+      sources: { projectUrl: 'SUPABASE_URL', anonKey: 'SUPABASE_ANON_KEY', jwtSecret: null },
+    })
+    expect(report.resolved_from.project_url).toBe('SUPABASE_URL')
+    expect(report.resolved_from.anon_key).toBe('SUPABASE_ANON_KEY')
+  })
+
   it('never leaks a secret, key, or token', () => {
     const report = buildHealthReport({
       config: config({ supabaseJwtSecret: 'super-secret-hmac-value' }),

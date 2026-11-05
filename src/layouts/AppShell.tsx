@@ -104,7 +104,30 @@ export function AppShell() {
                 tone="error"
                 icon={<IconInfo width={18} height={18} />}
                 title="We could not reach your account"
-                description={sessionError}
+                description={
+                  <>
+                    <p>{sessionError}</p>
+                    {/*
+                      The banner used to stop there, which left the user — and
+                      whoever they reported it to — with nothing to act on. The
+                      health endpoint says what is actually wrong, in one
+                      request, and is public by design precisely so it can be
+                      opened from here.
+                    */}
+                    <p className="mt-2">
+                      <a
+                        href="/api/v1/health"
+                        className="font-medium underline underline-offset-2"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Check what this deployment is missing
+                      </a>{' '}
+                      — it reports the exact configuration problem and the
+                      variable to set.
+                    </p>
+                  </>
+                }
               />
             </div>
           ) : null}
