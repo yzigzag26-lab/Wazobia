@@ -27,8 +27,18 @@ export interface AuthValue {
   /** The signed-in user's server-side profile, once fetched. */
   readonly profile: Profile | null
   readonly isSignedIn: boolean
-  /** Bearer token for `apiRequest`, or `undefined` when signed out. */
+  /**
+   * The stored bearer token, for RENDERING only.
+   *
+   * It may already be expired. Anything about to make a request must await
+   * `getAccessToken()` instead.
+   */
   readonly accessToken: string | undefined
+  /**
+   * Resolve a token that is valid right now, refreshing first if the stored one
+   * has expired. Returns `undefined` when signed out.
+   */
+  readonly getAccessToken: () => Promise<string | undefined>
   readonly signIn: (email: string, password: string) => Promise<void>
   readonly signUp: (email: string, password: string, displayName?: string) => Promise<void>
   readonly signOut: () => Promise<void>

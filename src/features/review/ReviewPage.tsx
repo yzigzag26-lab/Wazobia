@@ -63,7 +63,7 @@ function flagFor(flag: string) {
 }
 
 export default function ReviewPage() {
-  const { accessToken, status: authStatus } = useAuth()
+  const { getAccessToken, status: authStatus } = useAuth()
   const [language, setLanguage] = useState<string>('ig')
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -72,7 +72,8 @@ export default function ReviewPage() {
   const load = useCallback(
     async (code: string) => {
       try {
-        const queue = await reviewService.queue(code, 50, accessToken)
+        const token = await getAccessToken()
+        const queue = await reviewService.queue(code, 50, token)
         setPhase({ kind: 'ready', candidates: queue.candidates })
       } catch (error) {
         if (error instanceof WazobiaApiError && error.code === 'FORBIDDEN') {
@@ -92,7 +93,7 @@ export default function ReviewPage() {
         })
       }
     },
-    [accessToken],
+    [getAccessToken],
   )
 
   useEffect(() => {
@@ -113,7 +114,8 @@ export default function ReviewPage() {
     setBusyId(entry.id)
     setNotice(null)
     try {
-      await reviewService.decide(entry.id, decision, accessToken)
+      const token = await getAccessToken()
+      await reviewService.decide(entry.id, decision, token)
       setNotice(
         `${decision === 'approved' ? 'Approved' : 'Rejected'} “${entry.headword}”.`,
       )
