@@ -7,6 +7,7 @@ import { LanguagePreferenceProvider } from '@/stores/languagePreference'
 import { ThemeProvider } from '@/stores/theme'
 import { ProfileProvider } from '@/stores/profile'
 import { RequireAuth } from './RequireAuth'
+import { authService } from '@/services/authClient'
 
 vi.mock('@/config/env', () => ({
   env: {
@@ -105,14 +106,43 @@ describe('RequireAuth', () => {
     expect(await screen.findByText('Protected application')).toBeInTheDocument()
   })
 
-  it('does not treat an expired session as signed in', async () => {
-    // A stale token in storage is not a session. Rendering the app for it would
-    // show a shell whose every request 401s.
+  it('recovers an expired session by refreshing it', async () => {
+    /*
+     * This is the bug that made sign-in look broken. An expired *access* token
+     * is not an expired *session*: a refresh token can mint a new one. The
+     * provider used to mark such a session `expired` and redirect to /login,
+     * where signing in appeared to do nothing because the stale stored session
+     * was never replaced.
+     *
+     * The refresh call is stubbed because these tests never touch the network.
+     */
+    const refresh = vi.spyOn(authService, 'refresh').mockResolvedValue({
+      accessToken: 'fresh-token',
+      refreshToken: 'fresh-refresh',
+      expiresAt: Date.now() + 3_600_000,
+      userId: 'test-user',
+      email: 'ada@example.com',
+    })
     seedSession({ expiresAt: Date.now() - 1_000 })
+
+    renderAt('/app')
+
+    expect(await screen.findByText('Protected application')).toBeInTheDocument()
+    expect(refresh).toHaveBeenCalledTimes(1)
+    refresh.mockRestore()
+  })
+
+  it('signs out only when the refresh token is also rejected', async () => {
+    const refresh = vi
+      .spyOn(authService, 'refresh')
+      .mockRejectedValue(new Error('refresh rejected'))
+    seedSession({ expiresAt: Date.now() - 1_000 })
+
     renderAt('/app')
 
     expect(await screen.findByText('Sign in page')).toBeInTheDocument()
-    expect(screen.queryByText('Protected application')).not.toBeInTheDocument()
+    expect(refresh).toHaveBeenCalledTimes(1)
+    refresh.mockRestore()
   })
 
   it('does not treat a corrupt session as signed in', async () => {

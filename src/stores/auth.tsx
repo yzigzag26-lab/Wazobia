@@ -48,20 +48,56 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
   // Guards against two requests refreshing the same expired token at once.
   const refreshing = useRef<Promise<AuthSession | null> | null>(null)
 
-  // Restore on first paint. A stored session is not trusted blindly: it is
-  // adopted only so the UI can avoid a sign-in flash, and the profile fetch
-  // below is what proves it still works.
+  /**
+   * Restore on first paint.
+   *
+   * An expired *access* token is not an expired *session*. Supabase issues a
+   * refresh token alongside it, and the previous version of this effect marked
+   * such a session `expired` and sent the user to /login — where signing in
+   * "worked" but bounced straight back, because the stored session was never
+   * refreshed. Refreshing here is the difference between a returning user
+   * landing in the app and landing on a sign-in form that appears broken.
+   */
   useEffect(() => {
-    const stored = readStoredSession()
-    if (stored === null) {
-      setState({ status: 'signed-out', session: null, profile: null })
-      return
+    let cancelled = false
+
+    async function restore() {
+      const stored = readStoredSession()
+
+      if (stored === null) {
+        if (!cancelled) setState({ status: 'signed-out', session: null, profile: null })
+        return
+      }
+
+      if (!isExpired(stored)) {
+        if (!cancelled) {
+          setState({ status: 'signed-in', session: stored, profile: null })
+        }
+        return
+      }
+
+      // Expired access token: spend the refresh token before giving up.
+      if (stored.refreshToken.length === 0) {
+        clearStoredSession()
+        if (!cancelled) setState({ status: 'signed-out', session: null, profile: null })
+        return
+      }
+
+      try {
+        const fresh = await authService.refresh(stored.refreshToken)
+        if (!cancelled) setState({ status: 'signed-in', session: fresh, profile: null })
+      } catch {
+        // `authService.refresh` already clears storage on failure. That is a
+        // real sign-out: the refresh token was rejected or the network is down
+        // and we cannot prove the session.
+        if (!cancelled) setState({ status: 'signed-out', session: null, profile: null })
+      }
     }
-    setState({
-      status: isExpired(stored) ? 'expired' : 'signed-in',
-      session: stored,
-      profile: null,
-    })
+
+    void restore()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const fetchProfile = useCallback(async (session: AuthSession | null) => {
@@ -93,20 +129,18 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
   }, [signedInUserId, fetchProfile])
 
   /**
-   * The token to send with a request.
+   * Settle the session to a currently-valid token.
    *
-   * Expired tokens are refreshed on demand. If the refresh fails, the session is
-   * cleared and `undefined` is returned — a caller then gets a clean 401 instead
-   * of a mystery failure.
+   * This is the function every request path waits on. It existed before but was
+   * never called — `accessToken` was a `useMemo` over the stored value, so a
+   * request could start with a token that had already expired and come back
+   * 401. That is the failure mode that looks like "signed in but nothing works".
+   *
+   * Concurrent callers share one refresh: `refreshing.current` holds the
+   * in-flight promise so a page firing three requests does not trigger three
+   * refreshes and invalidate its own token (Supabase rotates refresh tokens).
    */
-  const accessToken = useMemo(() => {
-    void tick // re-computed when `tick` changes after a refresh
-    const session = state.session
-    if (session === null) return undefined
-    return session.accessToken
-  }, [state.session, tick])
-
-  const ensureFresh = useCallback(async (): Promise<AuthSession | null> => {
+  const settleSession = useCallback(async (): Promise<AuthSession | null> => {
     const session = state.session
     if (session === null) return null
     if (!isExpired(session)) return session
@@ -119,7 +153,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
         return fresh
       } catch {
         clearStoredSession()
-        setState({ status: 'expired', session: null, profile: null })
+        setState({ status: 'signed-out', session: null, profile: null })
         return null
       } finally {
         refreshing.current = null
@@ -128,6 +162,23 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
     return refreshing.current
   }, [state.session])
+
+  /**
+   * The token to read right now, without waiting.
+   *
+   * For rendering only. Anything that is about to make a request must call
+   * `getAccessToken()` instead, which refreshes first when needed.
+   */
+  const accessToken = useMemo(() => {
+    void tick // re-read after a refresh swaps the session object
+    return state.session?.accessToken
+  }, [state.session, tick])
+
+  /** Await a valid bearer token, refreshing if the current one is stale. */
+  const getAccessToken = useCallback(async (): Promise<string | undefined> => {
+    const settled = await settleSession()
+    return settled?.accessToken
+  }, [settleSession])
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -167,12 +218,13 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       profile: state.profile,
       isSignedIn: state.status === 'signed-in' && state.session !== null,
       accessToken,
+      getAccessToken,
       signIn,
       signUp,
       signOut,
       refreshProfile,
     }),
-    [state, accessToken, signIn, signUp, signOut, refreshProfile],
+    [state, accessToken, getAccessToken, signIn, signUp, signOut, refreshProfile],
   )
 
   // Keep the token fresh while a page is open. 60 s is well inside the margin
@@ -181,12 +233,12 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
   useEffect(() => {
     if (state.session === null) return
     const id = globalThis.setInterval(() => {
-      void ensureFresh()
+      void settleSession()
     }, 60_000)
     return () => {
       globalThis.clearInterval(id)
     }
-  }, [state.session, ensureFresh])
+  }, [state.session, settleSession])
 
   return <AuthContext value={value}>{children}</AuthContext>
 }

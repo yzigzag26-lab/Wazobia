@@ -49,7 +49,7 @@ type Phase =
 export default function TranslatePage() {
   // Protected endpoint: the server answers 401 without a token, so a signed-out
   // visitor is told to sign in instead of being sent to a paid provider.
-  const { accessToken } = useAuth()
+  const { getAccessToken } = useAuth()
 
   const [text, setText] = useState('')
   const [source, setSource] = useState<string>('en')
@@ -71,6 +71,9 @@ export default function TranslatePage() {
     setCopied(false)
     setPhase({ kind: 'loading' })
     try {
+      // Refresh-aware: a stale token is refreshed before the request, so an
+      // expired session does not surface as an unexplained 401.
+      const accessToken = await getAccessToken()
       const result = await translateService.translate({
         text: trimmed,
         source_language: source === 'auto' ? 'auto' : (source as 'en' | 'yo' | 'ha' | 'ig'),

@@ -52,7 +52,7 @@ const SUGGESTIONS = [
 export default function AiPage() {
   // Protected endpoint: the server answers 401 without a token, so a signed-out
   // visitor is told to sign in instead of being sent to a paid provider.
-  const { accessToken } = useAuth()
+  const { getAccessToken } = useAuth()
 
   const [message, setMessage] = useState('')
   const [language, setLanguage] = useState<string>('yo')
@@ -82,6 +82,8 @@ export default function AiPage() {
     setFailure(null)
 
     try {
+      // Refresh-aware, as in TranslatePage.
+      const accessToken = await getAccessToken()
       const response = await aiService.chat({
         message: question,
         language: language as 'yo' | 'ha' | 'ig' | 'en',
