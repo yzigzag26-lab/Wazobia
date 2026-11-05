@@ -178,6 +178,42 @@ function authHeaders(accessToken?: string): Record<string, string> {
   }
 }
 
+/**
+ * Give up on an auth request after this long.
+ *
+ * `fetch` has no default timeout. A request to a host that accepts the
+ * connection but never answers — a proxy, a captive portal, a paused Supabase
+ * project — leaves the promise pending forever, and the login form sits on
+ * "Signing in…" with no error and no escape. That is indistinguishable from
+ * "sign-in does not work", and it is the exact symptom this constant fixes.
+ */
+const AUTH_TIMEOUT_MS = 15_000
+
+/**
+ * Race a promise against a deadline.
+ *
+ * Passing `signal` to `fetch` is not sufficient on its own. The signal only
+ * cancels the request if the implementation honours it; a stub, a test double,
+ * or proxy middleware that swallows the signal leaves the promise pending and
+ * the caller waiting forever. Racing makes the guarantee ours: the returned
+ * promise ALWAYS settles, no matter what the callee does.
+ */
+async function withTimeout<T>(work: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof globalThis.setTimeout> | undefined
+
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = globalThis.setTimeout(() => {
+      reject(new AuthError('NETWORK_ERROR', message))
+    }, ms)
+  })
+
+  try {
+    return await Promise.race([work, deadline])
+  } finally {
+    if (timer !== undefined) globalThis.clearTimeout(timer)
+  }
+}
+
 async function post(path: string, body: unknown): Promise<unknown> {
   const url = authUrl(path)
   const anonKey = env.supabaseAnonKey
@@ -202,12 +238,18 @@ async function post(path: string, body: unknown): Promise<unknown> {
 
   let response: Response
   try {
-    response = await fetch(url, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify(body),
-    })
+    response = await withTimeout(
+      fetch(url, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
+      }),
+      AUTH_TIMEOUT_MS,
+      `The sign-in service did not respond within ${String(AUTH_TIMEOUT_MS / 1000)} seconds. Check your connection and try again.`,
+    )
   } catch (cause) {
+    if (cause instanceof AuthError) throw cause
     throw new AuthError('NETWORK_ERROR', messageFor('NETWORK_ERROR'), { cause })
   }
 
@@ -352,6 +394,7 @@ export const authService = {
       await fetch(url, {
         method: 'POST',
         headers: authHeaders(accessToken),
+        signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
       })
     } catch {
       // Signing out locally is what the user asked for; a failed server call

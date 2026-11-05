@@ -42,6 +42,32 @@ interface State {
 
 const INITIAL: State = { status: 'loading', session: null, profile: null }
 
+/**
+ * Abort a profile request that takes too long.
+ *
+ * 8 seconds is generous for a row lookup. `signIn` awaits the profile before
+ * returning, so an unbounded request here keeps the login button on
+ * "Signing in…" while the user is, in fact, already authenticated — the
+ * "loads but never arrives" symptom.
+ *
+ * The race is explicit rather than relying on the AbortSignal alone: a signal
+ * only helps if the callee honours it.
+ */
+const PROFILE_TIMEOUT_MS = 8_000
+
+function withProfileTimeout<T>(work: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof globalThis.setTimeout> | undefined
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = globalThis.setTimeout(() => {
+      reject(new Error('profile lookup timed out'))
+    }, PROFILE_TIMEOUT_MS)
+  })
+
+  return Promise.race([work, deadline]).finally(() => {
+    if (timer !== undefined) globalThis.clearTimeout(timer)
+  })
+}
+
 export function AuthProvider({ children }: { readonly children: ReactNode }) {
   const [state, setState] = useState<State>(INITIAL)
   const [tick, setTick] = useState(0)
@@ -100,10 +126,21 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     }
   }, [])
 
+  /**
+   * Load the profile for a session.
+   *
+   * Bounded by a timeout on purpose. `signIn` awaits this before returning, so
+   * a `/users/me` request that never settles would keep the login form on
+   * "Signing in…" indefinitely — the session is valid, but the user never
+   * arrives. A profile is decoration; failing to load one must never block
+   * navigation.
+   */
   const fetchProfile = useCallback(async (session: AuthSession | null) => {
     if (session === null) return
     try {
-      const profile = await userService.me(session.accessToken)
+      const profile = await withProfileTimeout(
+        userService.me(session.accessToken, AbortSignal.timeout(PROFILE_TIMEOUT_MS)),
+      )
       setState((current) => ({ ...current, status: 'signed-in', profile }))
     } catch (error) {
       // A 401 here means the token the server accepted at sign-in is no longer
