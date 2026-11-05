@@ -60,7 +60,7 @@ Set these in **Vercel → Project → Settings → Environment Variables**, for 
 | `VITE_SUPABASE_ANON_KEY` | the **anon** `public` key | Supabase → Settings → API |
 | `SUPABASE_URL` | same URL as above | as above |
 | `SUPABASE_ANON_KEY` | same anon key | as above |
-| `SUPABASE_JWT_SECRET` | **JWT secret** (not the anon key) | Supabase → Settings → API → JWT Settings |
+| `SUPABASE_JWT_SECRET` | **only for legacy HS256 projects** — leave unset otherwise | Supabase → Settings → JWT Keys |
 | `GROQ_API_KEY` | optional | console.groq.com |
 | `GEMINI_API_KEY` | optional | aistudio.google.com |
 
@@ -69,9 +69,19 @@ Notes that matter:
 - **The `VITE_` pair is public by design.** Vite inlines those two values into
   the browser bundle. That is safe: the anon key is the credential Supabase
   hands to browsers, and its power is bounded by Row Level Security.
-- **`SUPABASE_JWT_SECRET` is the one that makes the API protected work.** Without
-  it `/translate`, `/ai/chat` and `/users/me` answer `503` rather than running
-  unprotected. That refusal is deliberate.
+- **Token verification works two ways, and which one you need is a project
+  setting.** Modern Supabase projects sign access tokens with **ES256**, a
+  P-256 key pair whose public half is published at
+  `https://<ref>.supabase.co/auth/v1/.well-known/jwks.json`. Legacy projects
+  sign with **HS256** using a shared secret. The API supports both:
+  - ES256 needs only `SUPABASE_URL` — the JWKS URL is derived from it, keys are
+    fetched, cached for five minutes, and refetched once on rotate. **You do
+    not set `SUPABASE_JWT_SECRET` for an ES256 project; there is no secret.**
+  - HS256 needs `SUPABASE_JWT_SECRET`.
+  Setting a secret on an ES256 project does not break anything, but it does not
+  help either: it cannot verify an ES256 signature.
+- **`GET /api/v1/health` tells you which scheme is live and whether it works.**
+  Call it first when sign-in appears broken; see *Diagnosing sign-in* below.
 - **Never** put the *service-role* key in a `VITE_` variable. `src/config/env.ts`
   detects it and blocks requests if you do.
 - `GROQ_API_KEY` and `GEMINI_API_KEY` are both optional. With neither set, the
@@ -134,15 +144,65 @@ curl -s "$BASE/api/v1/users/me" -H "authorization: Bearer <access_token>"
 ```
 
 The second check is the important one. **A `200` on the unauthenticated
-translate call means the deployment is not protected** — almost always because
-`SUPABASE_JWT_SECRET` is missing from that environment.
+translate call means the deployment is not protected** — no verification
+material is configured at all.
+
+## Diagnosing sign-in
+
+**Start here. Do not read the JavaScript console first.**
+
+```bash
+curl -s "$BASE/api/v1/health" | jq
+```
+
+The `status` field is the answer:
+
+| `status` | Meaning | Fix |
+|---|---|---|
+| `ok` | A real token can be verified | Look elsewhere — the client is at fault |
+| `degraded`, `scheme: "unverified"` | No secret and the JWKS was unreachable | Check the project URL and that the project is not paused |
+| `degraded`, summary mentions the anon key | Tokens verify but profile lookups cannot run | Set `SUPABASE_ANON_KEY` |
+| `down` | Nothing can verify a token | Set `SUPABASE_URL`, or `SUPABASE_JWT_SECRET` for an HS256 project |
+
+`checks.jwks` reports whether the key set was actually fetched, and
+`checks.jwks_key_count` how many usable keys it carried. Both are public facts;
+no key material is ever returned.
+
+### The failure this replaces
+
+A deployment reported "sign-in loads but never takes me to the dashboard". The
+browser showed `401` on `/api/v1/users/me` while Supabase happily issued tokens.
+The cause: the verifier accepted `HS256` only, and the project signs `ES256`, so
+**every genuine token was rejected**. The client then treated that `401` as a
+dead session, cleared it, and redirected to `/login` — producing an unescapable
+loop.
+
+Symptoms worth recognising, because each has one cause:
+
+- **`400` on `/auth/v1/token`** — wrong password. Nothing to do with the API.
+  Supabase returns `400`, not `401`, for bad credentials.
+- **`401` on `/api/v1/...` immediately after a successful sign-in** — the server
+  cannot verify the token. Check `/api/v1/health`.
+- **Bounced back to `/login` after landing** — the client destroying a valid
+  session on that `401`. Fixed: a `401` from our own API no longer signs the
+  user out; it surfaces a banner instead.
+- **`404` on a deep link such as `/login`** — missing SPA fallback. `vercel.json`
+  rewrites everything except `/api/*` to `/index.html`.
 
 ## Local development
 
 ```bash
-cp .env.example .env      # then fill in the two VITE_ values
 npm install
 npm run dev               # http://localhost:5173
+```
+
+`.env.development` is committed and supplies the two public Supabase values, so
+a fresh checkout signs in without extra setup. You only need a local `.env` to
+override them, and `.env` remains gitignored.
+
+```bash
+# Optional: start from a template if you want different values
+cp .env.example .env
 ```
 
 `vite dev` serves the React app only. The `api/` functions do **not** run under

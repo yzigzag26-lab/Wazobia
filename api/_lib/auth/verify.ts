@@ -1,46 +1,43 @@
 /**
- * Server-side caller identity.
+ * Verification of Supabase access tokens.
  *
- * This is the module every protected endpoint goes through, so it is written to
- * be correct before it is written to be convenient.
+ * ## Two signing schemes, both real
  *
- * ## How the caller is identified
+ * A Supabase project signs user tokens in one of two ways, and which one you
+ * get is a project setting — not something this code controls:
  *
- * The client sends `Authorization: Bearer <supabase access token>`. That token
- * is a JWT signed by Supabase with the project's JWT secret. Two ways to trust
- * it:
+ *   * **HS256** (legacy) — one shared secret, `SUPABASE_JWT_SECRET`, symmetric.
+ *     Signing and verifying use the same value, so the secret must never leave
+ *     the server.
+ *   * **ES256** (current default for new projects) — a P-256 key pair. Supabase
+ *     holds the private half and publishes the public half at
+ *     `GET /auth/v1/.well-known/jwks.json`. Nothing secret is shared, and the
+ *     project can rotate keys without redeploying the API.
  *
- *   1. Decode the payload and read `sub`. Fast, and completely worthless as
- *      security: the payload is base64, not encrypted, and anyone can mint a
- *      token with `sub: <somebody else>`. Never do this.
- *   2. Verify the signature, then read `sub`. That is what happens here.
+ * ## Why this module was rewritten
  *
- * An earlier idea was to skip local verification and ask Supabase who the user
- * is via `GET /auth/v1/user`. That works, but it puts a network round trip in
- * front of *every* endpoint. Verifying locally costs a few microseconds of
- * HMAC and removes that latency entirely.
+ * v1 accepted HS256 only and refused everything else. That was the correct
+ * security stance and the wrong operational one: a deployment whose project
+ * signs with ES256 rejected **every genuine token**, so sign-in succeeded and
+ * then every protected call returned 401. The symptom was "sign-in loads but
+ * never reaches the dashboard", which looks like an auth bug and is really a
+ * signing-scheme mismatch.
  *
- * ## Why HMAC and not just "the token parses"
+ * So both schemes are supported, and the algorithm is chosen from the token's
+ * own header — but never *trusted* from it:
  *
- * Supabase signs with HS256 by default (`SUPABASE_JWT_SECRET`, a shared secret),
- * which maps onto WebCrypto's HMAC-SHA256. If a future project is configured for
- * asymmetric signing (RS256/ES256), this module refuses the token rather than
- * accepting it unverified, and the honest failure is a 401 — not an assumption.
+ *   * `alg` must be HS256, ES256, or RS256. `none` is always refused.
+ *   * For ES256/RS256 the `kid` must match a key in the fetched JWKS. A token
+ *     naming an unknown `kid` is refused, not retried against every key.
+ *   * The key is fetched from the project's own JWKS endpoint, which is the
+ *     authority. A token cannot redirect that fetch.
  *
- * ## What is deliberately checked
- *
- *   * signature (constant-time compare, via WebCrypto)
- *   * `exp` — expired tokens are rejected even if the signature is valid
- *   * `nbf` — a token that is not valid yet is rejected
- *   * `aud` — must be `authenticated`; a token minted for another audience is
- *     not a user session
- *   * `role` — must be `authenticated`, never `anon` or `service_role`
- *   * `iss` — must be the configured Supabase project, when configured
- *
- * Rejecting `anon` matters: the anon key is a validly-signed JWT that ships in
- * the browser bundle. Without this check, the anon key itself would pass as a
- * bearer token and every "protected" endpoint would be open.
+ * The classic JWT attacks this defends against are in the tests: `alg: none`,
+ * HMAC-signed-with-the-public-key, wrong `kid`, and a signature lifted from a
+ * different token.
  */
+
+import type { webcrypto } from 'node:crypto'
 
 /** The verified caller. Nothing here is client-asserted. */
 export interface AuthenticatedUser {
@@ -62,43 +59,71 @@ export type AuthFailureReason =
   | 'NOT_A_USER'
   | 'NO_SUBJECT'
   | 'SECRET_MISSING'
+  | 'JWKS_UNAVAILABLE'
+  | 'UNKNOWN_KEY'
 
 export type AuthResult =
   | { readonly ok: true; readonly user: AuthenticatedUser }
   | { readonly ok: false; readonly reason: AuthFailureReason }
 
+/**
+ * A public key, already parsed.
+ *
+ * `alg` decides which WebCrypto parameters verify a signature with it.
+ */
+interface VerificationKey {
+  readonly alg: 'ES256' | 'RS256'
+  readonly key: ImportedCryptoKey
+}
+
 export interface TokenVerifierConfig {
-  /** Shared HMAC secret from the Supabase project settings. */
-  readonly jwtSecret: string
+  /**
+   * Shared HMAC secret. Only consulted for HS256 tokens. `null` when the
+   * deployment has not set one — which is expected for ES256 projects, where
+   * there is no shared secret to set.
+   */
+  readonly jwtSecret?: string | null | undefined
+  /**
+   * Project JWKS URL, e.g. `https://<ref>.supabase.co/auth/v1/.well-known/jwks.json`.
+   * When absent, asymmetric tokens cannot be verified and are refused.
+   */
+  readonly jwksUrl?: string | undefined
   /** Expected `iss`, e.g. `https://<ref>.supabase.co/auth/v1`. Optional. */
   readonly issuer?: string | undefined
   /** Injected for tests; defaults to `Date.now`. */
   readonly now?: (() => number) | undefined
+  /** Injected for tests; defaults to the global `fetch`. */
+  readonly fetchImpl?: typeof globalThis.fetch | undefined
 }
 
 const TEXT_ENCODER = new TextEncoder()
 
-/**
- * The key type, derived rather than named.
- *
- * `api/tsconfig.json` deliberately excludes the DOM lib, so the global
- * `CryptoKey` here comes from Node's webcrypto typings and is a *value*, not a
- * type alias. Referring to it as a type does not compile. Deriving it from the
- * API we actually call is both portable and self-maintaining.
- */
+/** A key type derived rather than named — see the note in `verify.ts` history. */
 type ImportedCryptoKey = Awaited<ReturnType<typeof globalThis.crypto.subtle.importKey>>
 
-function decodeBase64Url(segment: string): Uint8Array | null {
-  // `atob` deals in base64, JWT uses base64url. Convert, and pad to a multiple
-  // of 4 — atob rejects unpadded input in some runtimes.
-  const normalised = segment.replaceAll('-', '+').replaceAll('_', '/')
+/**
+ * The JWK shape `importKey` accepts.
+ *
+ * `api/tsconfig.json` deliberately has no DOM lib, so the DOM's global
+ * `JsonWebKey` interface is not in scope. Node publishes the same structure
+ * under `webcrypto`, which is the correct source for a server-only module.
+ */
+type JwkInput = webcrypto.JsonWebKey
+
+/* -------------------------------------------------------------------------- */
+/* base64url                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export function decodeBase64Url(value: string): Uint8Array | null {
+  const normalised = value.replaceAll('-', '+').replaceAll('_', '/')
+  // Reject anything that is not base64 at all before handing it to atob, which
+  // is lenient about some inputs and throws on others.
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(normalised)) return null
   const padded = normalised.padEnd(normalised.length + ((4 - (normalised.length % 4)) % 4), '=')
   try {
     const binary = globalThis.atob(padded)
     const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i += 1) {
-      bytes[i] = binary.charCodeAt(i)
-    }
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
     return bytes
   } catch {
     return null
@@ -125,53 +150,216 @@ export function parseBearerToken(header: string | null | undefined): string | nu
   return match?.[1] ?? null
 }
 
+/* -------------------------------------------------------------------------- */
+/* JWKS                                                                        */
+/* -------------------------------------------------------------------------- */
+
+/** One entry from a JWKS document. Only the fields we use are typed. */
+interface JwkEntry {
+  readonly kty?: unknown
+  readonly kid?: unknown
+  readonly alg?: unknown
+  readonly crv?: unknown
+  readonly use?: unknown
+}
+
 /**
- * Build a verifier bound to one project's secret.
+ * How long a fetched key set is trusted. Keys rotate rarely; five minutes keeps
+ * a rotation visible without a redeploy, while removing the per-request fetch
+ * that would otherwise add latency to every protected call.
+ */
+const JWKS_CACHE_MS = 5 * 60 * 1000
+
+/**
+ * On a `kid` miss, how long to wait before refetching.
  *
- * Returns a function so the secret is captured once and the crypto key is
- * imported lazily — importing on every request would be wasteful, importing at
- * module scope would break in an environment without WebCrypto.
+ * Supabase rotates signing keys. Without this, a token signed by a key created
+ * seconds ago would be rejected until the cache expired — up to five minutes of
+ * "invalid token" for a perfectly valid session. Refetching once on a miss
+ * closes that window, and the dampening stops a token with a garbage `kid` from
+ * turning every request into an outbound fetch.
+ */
+const JWKS_MISS_REFETCH_MS = 30 * 1000
+
+const JWKS_TIMEOUT_MS = 5_000
+
+interface JwksCache {
+  keys: Map<string, VerificationKey>
+  fetchedAt: number
+}
+
+/**
+ * Build a verifier bound to one project.
+ *
+ * Returns a function so configuration is captured once and keys are imported
+ * lazily — importing at module scope would break in an environment without
+ * WebCrypto.
  */
 export function createTokenVerifier(config: TokenVerifierConfig) {
-  let keyPromise: Promise<ImportedCryptoKey> | null = null
+  let hmacKeyPromise: Promise<ImportedCryptoKey> | null = null
+  let jwksCache: JwksCache | null = null
+  let jwksInFlight: Promise<Map<string, VerificationKey> | null> | null = null
+  let lastMissRefetchAt = 0
 
-  function getKey(): Promise<ImportedCryptoKey> | null {
-    if (config.jwtSecret.length === 0) return null
-    keyPromise ??= globalThis.crypto.subtle.importKey(
+  async function importHmacKey(): Promise<ImportedCryptoKey | null> {
+    const secret = config.jwtSecret
+    if (typeof secret !== 'string' || secret.length === 0) return null
+    hmacKeyPromise ??= globalThis.crypto.subtle.importKey(
       'raw',
-      TEXT_ENCODER.encode(config.jwtSecret),
+      TEXT_ENCODER.encode(secret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['verify'],
     )
-    return keyPromise
+    return hmacKeyPromise
   }
 
-  return async function verify(
-    header: string | null | undefined,
-  ): Promise<AuthResult> {
+  /**
+   * Import every usable key in a JWKS document.
+   *
+   * Keys are skipped rather than fatal: a project mid-rotation can publish one
+   * key we cannot parse alongside one we can, and refusing the whole set would
+   * turn a partial outage into a total one.
+   */
+  async function importJwks(document: unknown): Promise<Map<string, VerificationKey>> {
+    const keys = new Map<string, VerificationKey>()
+    const list =
+      typeof document === 'object' && document !== null
+        ? (document as { keys?: unknown }).keys
+        : undefined
+    if (!Array.isArray(list)) return keys
+
+    // Pick out the entries worth attempting first, so the imports below can run
+    // concurrently instead of one await at a time.
+    const candidates: { kid: string; alg: 'ES256' | 'RS256'; entry: JwkEntry }[] = []
+    for (const entry of list as JwkEntry[]) {
+      if (typeof entry !== 'object' || entry === null) continue
+      if (typeof entry.kid !== 'string') continue
+      if (entry.use !== undefined && entry.use !== 'sig') continue
+      if (entry.kty !== 'EC' && entry.kty !== 'RSA') continue
+
+      // Prefer the documented algorithm; fall back to the curve/type, because
+      // not every JWKS declares `alg` and a missing field is not an error.
+      let alg: 'ES256' | 'RS256' | null = null
+      if (entry.alg === 'ES256' || entry.alg === 'RS256') {
+        alg = entry.alg
+      } else if (entry.kty === 'EC' && entry.crv === 'P-256') {
+        alg = 'ES256'
+      } else if (entry.kty === 'RSA') {
+        alg = 'RS256'
+      }
+      if (alg === null) continue
+
+      candidates.push({ kid: entry.kid, alg, entry })
+    }
+
+    const imported = await Promise.all(
+      candidates.map(async (candidate) => {
+        // `api/tsconfig.json` deliberately has no DOM lib, so the DOM's
+        // `RsaHashedImportParams` / `EcKeyImportParams` names do not exist here.
+        // The shapes below are what `importKey` actually reads.
+        const importParams =
+          candidate.alg === 'ES256'
+            ? ({ name: 'ECDSA', namedCurve: 'P-256' } as const)
+            : ({ name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' } as const)
+
+        try {
+          const key = await globalThis.crypto.subtle.importKey(
+            'jwk',
+            // The JWKS entry is the JWK. Only the fields WebCrypto reads are
+            // used; extra members are ignored by the implementation.
+            candidate.entry as unknown as JwkInput,
+            importParams,
+            false,
+            ['verify'],
+          )
+          return { kid: candidate.kid, alg: candidate.alg, key }
+        } catch {
+          // A key we cannot parse is skipped, not fatal: a project mid-rotation
+          // can publish one unusable key alongside a usable one, and refusing
+          // the whole set would turn a partial problem into a total outage.
+          return null
+        }
+      }),
+    )
+
+    for (const result of imported) {
+      if (result === null) continue
+      keys.set(result.kid, { alg: result.alg, key: result.key })
+    }
+
+    return keys
+  }
+
+  /** Fetch and cache the key set. Returns `null` when it cannot be obtained. */
+  async function loadJwks(force: boolean): Promise<Map<string, VerificationKey> | null> {
+    if (config.jwksUrl === undefined || config.jwksUrl.length === 0) return null
+
+    const now = config.now?.() ?? Date.now()
+    if (!force && jwksCache !== null && now - jwksCache.fetchedAt < JWKS_CACHE_MS) {
+      return jwksCache.keys
+    }
+
+    // Collapse concurrent fetches. A burst of parallel requests after a deploy
+    // must not become a burst of outbound fetches to Supabase.
+    jwksInFlight ??= (async () => {
+      const doFetch = config.fetchImpl ?? globalThis.fetch
+      try {
+        const response = await doFetch(config.jwksUrl as string, {
+          headers: { accept: 'application/json' },
+          signal: AbortSignal.timeout(JWKS_TIMEOUT_MS),
+        })
+        if (!response.ok) return null
+        const keys = await importJwks(await response.json())
+        if (keys.size === 0) return null
+        jwksCache = { keys, fetchedAt: config.now?.() ?? Date.now() }
+        return keys
+      } catch {
+        return null
+      } finally {
+        jwksInFlight = null
+      }
+    })()
+
+    return jwksInFlight
+  }
+
+  /** Resolve the key a token names, refetching once if the `kid` is unknown. */
+  async function publicKeyFor(
+    kid: unknown,
+    alg: 'ES256' | 'RS256',
+  ): Promise<VerificationKey | null> {
+    if (typeof kid !== 'string' || kid.length === 0) return null
+
+    const cached = await loadJwks(false)
+    const hit = cached?.get(kid)
+    if (hit !== undefined && hit.alg === alg) return hit
+
+    const now = config.now?.() ?? Date.now()
+    if (now - lastMissRefetchAt < JWKS_MISS_REFETCH_MS) return null
+    lastMissRefetchAt = now
+
+    const refreshed = await loadJwks(true)
+    const retried = refreshed?.get(kid)
+    return retried !== undefined && retried.alg === alg ? retried : null
+  }
+
+  return async function verify(header: string | null | undefined): Promise<AuthResult> {
     const token = parseBearerToken(header)
     if (token === null) return { ok: false, reason: 'MISSING' }
 
     const parts = token.split('.')
     if (parts.length !== 3) return { ok: false, reason: 'MALFORMED' }
-    const [encodedHeader, encodedPayload, encodedSignature] = parts as [
-      string,
-      string,
-      string,
-    ]
+    const [encodedHeader, encodedPayload, encodedSignature] = parts as [string, string, string]
 
     const tokenHeader = decodeJson(encodedHeader)
     if (tokenHeader === null) return { ok: false, reason: 'MALFORMED' }
 
-    // Only HMAC algorithms can be verified with a shared secret. `none` must
-    // never be accepted, and we do not silently downgrade to "skip the check".
-    if (tokenHeader['alg'] !== 'HS256') {
-      return { ok: false, reason: 'ALGORITHM_UNSUPPORTED' }
-    }
+    const alg = tokenHeader['alg']
 
-    const key = getKey()
-    if (key === null) return { ok: false, reason: 'SECRET_MISSING' }
+    // `none` is never acceptable. It is listed explicitly so the refusal is
+    // deliberate rather than an accident of the comparison below.
+    if (alg === 'none') return { ok: false, reason: 'ALGORITHM_UNSUPPORTED' }
 
     const signature = decodeBase64Url(encodedSignature)
     if (signature === null) return { ok: false, reason: 'MALFORMED' }
@@ -185,29 +373,50 @@ export function createTokenVerifier(config: TokenVerifierConfig) {
 
     let signatureValid: boolean
     try {
-      // WebCrypto verifies HMAC in constant time internally, so no manual
-      // constant-time comparison is needed *and none is written here*.
-      //
-      // An earlier version re-signed the token as a "belt and braces" fallback
-      // and compared bytes itself. That was worse than useless: the imported
-      // key only carried the `verify` usage, so `subtle.sign` threw
-      // `InvalidAccessError` for exactly the tokens it was meant to reject —
-      // turning every forged token into a 500 instead of a 401. Bad signatures
-      // are expected input, not exceptional conditions, so this path must
-      // return a value, never throw.
-      signatureValid = await globalThis.crypto.subtle.verify(
-        'HMAC',
-        await key,
-        signature,
-        signedPortion,
-      )
+      if (alg === 'HS256') {
+        const key = await importHmacKey()
+        if (key === null) return { ok: false, reason: 'SECRET_MISSING' }
+        // WebCrypto verifies HMAC in constant time internally, so no manual
+        // comparison is needed and none is written here.
+        signatureValid = await globalThis.crypto.subtle.verify('HMAC', key, signature, signedPortion)
+      } else if (alg === 'ES256' || alg === 'RS256') {
+        const resolved = await publicKeyFor(tokenHeader['kid'], alg)
+        if (resolved === null) {
+          // Distinguish "we could not reach the key set" from "this token names
+          // a key that does not exist". The first is an outage; the second is a
+          // forgery or a project/secret mismatch.
+          const reachable = await loadJwks(false)
+          return {
+            ok: false,
+            reason: reachable === null ? 'JWKS_UNAVAILABLE' : 'UNKNOWN_KEY',
+          }
+        }
+
+        // ECDSA in JWT is the raw r‖s pair, which is exactly what WebCrypto
+        // expects — so the signature is passed through unconverted. RSASSA
+        // takes the token data and the signature in the same order as HMAC.
+        signatureValid =
+          resolved.alg === 'ES256'
+            ? await globalThis.crypto.subtle.verify(
+                { name: 'ECDSA', hash: 'SHA-256' },
+                resolved.key,
+                signature,
+                signedPortion,
+              )
+            : await globalThis.crypto.subtle.verify(
+                'RSASSA-PKCS1-v1_5',
+                resolved.key,
+                signature,
+                signedPortion,
+              )
+      } else {
+        return { ok: false, reason: 'ALGORITHM_UNSUPPORTED' }
+      }
     } catch {
       return { ok: false, reason: 'BAD_SIGNATURE' }
     }
 
-    if (!signatureValid) {
-      return { ok: false, reason: 'BAD_SIGNATURE' }
-    }
+    if (!signatureValid) return { ok: false, reason: 'BAD_SIGNATURE' }
 
     const claims = decodeJson(encodedPayload)
     if (claims === null) return { ok: false, reason: 'MALFORMED' }
@@ -268,7 +477,15 @@ export function createTokenVerifier(config: TokenVerifierConfig) {
  * field, which the client renders only as a support reference.
  */
 export function authFailureMessage(reason: AuthFailureReason): string {
-  return reason === 'SECRET_MISSING'
-    ? 'Sign-in is temporarily unavailable. Please try again shortly.'
-    : 'Please sign in to continue.'
+  switch (reason) {
+    case 'SECRET_MISSING':
+      return 'Sign-in is temporarily unavailable. Please try again shortly.'
+    case 'JWKS_UNAVAILABLE':
+      // The token may be perfectly good; the server could not fetch the keys to
+      // check it. Telling the user to sign in again would send them round a
+      // loop that cannot succeed, so say what is actually wrong.
+      return 'This deployment could not verify your session. Please try again shortly.'
+    default:
+      return 'Please sign in to continue.'
+  }
 }

@@ -38,9 +38,22 @@ interface State {
   readonly status: AuthStatus
   readonly session: AuthSession | null
   readonly profile: Profile | null
+  /**
+   * A problem that affects the signed-in experience without ending the session.
+   *
+   * Distinct from `status: 'expired'` on purpose. "Your session ended" and "you
+   * are signed in but the server is unhappy" call for different UI, and
+   * conflating them is what sent users round the sign-in loop.
+   */
+  readonly sessionError: string | null
 }
 
-const INITIAL: State = { status: 'loading', session: null, profile: null }
+const INITIAL: State = {
+  status: 'loading',
+  session: null,
+  profile: null,
+  sessionError: null,
+}
 
 /**
  * Abort a profile request that takes too long.
@@ -91,13 +104,13 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       const stored = readStoredSession()
 
       if (stored === null) {
-        if (!cancelled) setState({ status: 'signed-out', session: null, profile: null })
+        if (!cancelled) setState({ status: 'signed-out', session: null, profile: null, sessionError: null })
         return
       }
 
       if (!isExpired(stored)) {
         if (!cancelled) {
-          setState({ status: 'signed-in', session: stored, profile: null })
+          setState({ status: 'signed-in', session: stored, profile: null, sessionError: null })
         }
         return
       }
@@ -105,18 +118,18 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       // Expired access token: spend the refresh token before giving up.
       if (stored.refreshToken.length === 0) {
         clearStoredSession()
-        if (!cancelled) setState({ status: 'signed-out', session: null, profile: null })
+        if (!cancelled) setState({ status: 'signed-out', session: null, profile: null, sessionError: null })
         return
       }
 
       try {
         const fresh = await authService.refresh(stored.refreshToken)
-        if (!cancelled) setState({ status: 'signed-in', session: fresh, profile: null })
+        if (!cancelled) setState({ status: 'signed-in', session: fresh, profile: null, sessionError: null })
       } catch {
         // `authService.refresh` already clears storage on failure. That is a
         // real sign-out: the refresh token was rejected or the network is down
         // and we cannot prove the session.
-        if (!cancelled) setState({ status: 'signed-out', session: null, profile: null })
+        if (!cancelled) setState({ status: 'signed-out', session: null, profile: null, sessionError: null })
       }
     }
 
@@ -141,14 +154,29 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       const profile = await withProfileTimeout(
         userService.me(session.accessToken, AbortSignal.timeout(PROFILE_TIMEOUT_MS)),
       )
-      setState((current) => ({ ...current, status: 'signed-in', profile }))
+      setState((current) => ({ ...current, status: 'signed-in', profile, sessionError: null }))
     } catch (error) {
-      // A 401 here means the token the server accepted at sign-in is no longer
-      // good. Clearing it is more honest than rendering a signed-in shell whose
-      // every subsequent request will fail.
+      /*
+       * A 401 does NOT by itself mean the session is dead, and treating it that
+       * way was actively harmful.
+       *
+       * Supabase had just issued this token, so a 401 here is far more likely
+       * to be a server-side problem — an endpoint rejecting every token, a
+       * mismatched signing configuration, a bad deploy — than a genuinely
+       * revoked session. Destroying the session in that case produces a loop
+       * the user cannot escape: sign in, land, get bounced to /login, forever.
+       *
+       * So: keep the session and surface it. `sessionError` is what the UI uses
+       * to explain a signed-in-but-unloadable state. Only a token that Supabase
+       * itself rejects (during a refresh) is a real sign-out.
+       */
       if (error instanceof WazobiaApiError && error.code === 'UNAUTHENTICATED') {
-        clearStoredSession()
-        setState({ status: 'expired', session: null, profile: null })
+        setState((current) => ({
+          ...current,
+          status: current.session === null ? 'expired' : 'signed-in',
+          sessionError: 'The server could not verify your session. You are still signed in.',
+        }))
+        return
       }
       // Any other failure (network, missing endpoint) leaves the session intact:
       // the user is still signed in, we simply could not load their profile.
@@ -190,7 +218,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
         return fresh
       } catch {
         clearStoredSession()
-        setState({ status: 'signed-out', session: null, profile: null })
+        setState({ status: 'signed-out', session: null, profile: null, sessionError: null })
         return null
       } finally {
         refreshing.current = null
@@ -220,7 +248,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
   const signIn = useCallback(
     async (email: string, password: string) => {
       const session = await authService.signIn(email, password)
-      setState({ status: 'signed-in', session, profile: null })
+      setState({ status: 'signed-in', session, profile: null, sessionError: null })
       await fetchProfile(session)
     },
     [fetchProfile],
@@ -233,7 +261,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
         password,
         ...(displayName === undefined ? {} : { displayName }),
       })
-      setState({ status: 'signed-in', session, profile: null })
+      setState({ status: 'signed-in', session, profile: null, sessionError: null })
       await fetchProfile(session)
     },
     [fetchProfile],
@@ -241,7 +269,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await authService.signOut(state.session?.accessToken ?? null)
-    setState({ status: 'signed-out', session: null, profile: null })
+    setState({ status: 'signed-out', session: null, profile: null, sessionError: null })
   }, [state.session])
 
   const refreshProfile = useCallback(async () => {
@@ -254,6 +282,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       session: state.session,
       profile: state.profile,
       isSignedIn: state.status === 'signed-in' && state.session !== null,
+      sessionError: state.sessionError,
       accessToken,
       getAccessToken,
       signIn,

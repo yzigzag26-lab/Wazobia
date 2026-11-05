@@ -28,6 +28,14 @@ export interface AuthValue {
   readonly profile: Profile | null
   readonly isSignedIn: boolean
   /**
+   * A problem affecting the signed-in experience that does NOT end the session,
+   * e.g. the API rejecting a token Supabase considers valid.
+   *
+   * Shown as a banner rather than treated as a sign-out: destroying the session
+   * on one server-side 401 traps the user in a sign-in loop they cannot escape.
+   */
+  readonly sessionError: string | null
+  /**
    * The stored bearer token, for RENDERING only.
    *
    * It may already be expired. Anything about to make a request must await

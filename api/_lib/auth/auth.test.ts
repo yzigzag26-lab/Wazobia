@@ -194,10 +194,26 @@ describe('createTokenVerifier — rejects forged and malformed tokens', () => {
     expect(result).toEqual({ ok: false, reason: 'ALGORITHM_UNSUPPORTED' })
   })
 
-  it('refuses an asymmetric algorithm it cannot verify with a shared secret', async () => {
-    // Accepting RS256 while only holding an HMAC secret would mean skipping the
-    // signature check entirely. It must be a refusal, not a pass.
+  it('refuses an asymmetric token when no key set is configured', async () => {
+    /*
+     * An RS256 (or ES256) token cannot be checked with an HMAC secret, so with
+     * no `jwksUrl` it must be refused rather than passed.
+     *
+     * This test previously asserted ALGORITHM_UNSUPPORTED for *every*
+     * asymmetric token, which encoded the bug: the live project signs with
+     * ES256, so "refuse all asymmetric tokens" rejected every genuine session
+     * and made sign-in unusable. The refusal now depends on whether a key set
+     * is configured — tested properly in `verify-es256.test.ts`.
+     */
     const token = await sign(validClaims(), { header: { alg: 'RS256' } })
+    const result = await verifier()(`Bearer ${token}`)
+    expect(result.ok).toBe(false)
+    // No JWKS configured, so verification material is unavailable.
+    expect(result).toEqual({ ok: false, reason: 'JWKS_UNAVAILABLE' })
+  })
+
+  it('refuses an algorithm that is not a real JWT algorithm', async () => {
+    const token = await sign(validClaims(), { header: { alg: 'HS512' } })
     const result = await verifier()(`Bearer ${token}`)
     expect(result).toEqual({ ok: false, reason: 'ALGORITHM_UNSUPPORTED' })
   })

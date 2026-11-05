@@ -1,5 +1,8 @@
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { useAuth } from '@/hooks/useAuth'
+import { StateMessage } from '@/components/ui/StateMessage'
+import { IconInfo } from '@/components/ui/icons'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { useMediaQuery, DESKTOP_QUERY } from '@/hooks/useMediaQuery'
@@ -46,6 +49,8 @@ export function AppShell() {
       : `${brand.name} — ${brand.positioning}`
   }, [location.pathname])
 
+  const { sessionError } = useAuth()
+
   return (
     <div className="min-h-dvh bg-paper-50">
       <a
@@ -88,6 +93,22 @@ export function AppShell() {
           tabIndex={-1}
           className="mx-auto w-full max-w-[74rem] px-[var(--gutter,1rem)] py-7 outline-none sm:px-6 sm:py-9 lg:px-10 lg:py-10"
         >
+          {/*
+            A signed-in user whose requests are being rejected sees this instead
+            of a silent, empty app. Previously that condition ended the session
+            and bounced them to /login — a loop with no explanation.
+          */}
+          {sessionError !== null ? (
+            <div className="mb-6">
+              <StateMessage
+                tone="error"
+                icon={<IconInfo width={18} height={18} />}
+                title="We could not reach your account"
+                description={sessionError}
+              />
+            </div>
+          ) : null}
+
           <Outlet />
         </main>
 

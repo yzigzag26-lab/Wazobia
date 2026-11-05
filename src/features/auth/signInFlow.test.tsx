@@ -11,6 +11,7 @@ import { ThemeProvider } from '@/stores/theme'
 import { ProfileProvider } from '@/stores/profile'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { LoginForm } from './LoginForm'
+import { AppShell } from '@/layouts/AppShell'
 
 /**
  * End-to-end sign-in, in jsdom.
@@ -92,6 +93,35 @@ function mockNetwork(options: { profileFails?: boolean } = {}) {
     }
     throw new Error(`unexpected fetch: ${url}`)
   })
+}
+
+/**
+ * Render `/app` through the real `AppShell`, which is where a signed-in-but-
+ * misconfigured state is explained to the user.
+ */
+function renderShell() {
+  return render(
+    <QueryClientProvider client={createQueryClient()}>
+      <Tooltip.Provider>
+        <AuthProvider>
+          <LanguagePreferenceProvider>
+            <ThemeProvider>
+              <ProfileProvider>
+                <MemoryRouter initialEntries={['/login']}>
+                  <Routes>
+                    <Route path="/login" element={<LoginForm />} />
+                    <Route path="/app" element={<RequireAuth><AppShell /></RequireAuth>}>
+                      <Route index element={<h1>Dashboard</h1>} />
+                    </Route>
+                  </Routes>
+                </MemoryRouter>
+              </ProfileProvider>
+            </ThemeProvider>
+          </LanguagePreferenceProvider>
+        </AuthProvider>
+      </Tooltip.Provider>
+    </QueryClientProvider>,
+  )
 }
 
 function renderApp() {
@@ -239,6 +269,58 @@ describe('sign-in flow', () => {
     await submitCredentials()
 
     expect(await screen.findByText(/could not reach the sign-in service/i)).toBeInTheDocument()
+  })
+
+  it('does NOT destroy the session when the API 401s a valid token', async () => {
+    /*
+     * This is the production failure, reproduced.
+     *
+     * Supabase issues a good token; `/users/me` answers 401 because the server
+     * cannot verify it (in production, the verifier only accepted HS256 while
+     * the project signs ES256). The old code treated that 401 as a dead session
+     * and cleared it, so the user was bounced to /login — and signing in again
+     * produced the identical loop. From outside: "sign-in loads but never takes
+     * me to the dashboard."
+     *
+     * A 401 from our own API is a server-side fact, not proof the user's
+     * session is invalid. It must leave them signed in and say so.
+     */
+    let authenticated = true
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('/auth/v1/token')) return jsonResponse(200, tokenPayload())
+      if (url.includes('/api/v1/users/me')) {
+        return authenticated
+          ? jsonResponse(401, {
+              success: false,
+              error: { code: 'UNAUTHENTICATED', message: 'Please sign in to continue.' },
+              request_id: 'req_1',
+            })
+          : jsonResponse(200, { success: true, data: profilePayload(), request_id: 'req_2' })
+      }
+      return jsonResponse(200, {})
+    })
+
+    // Route through the REAL shell: the banner that explains the condition is
+    // rendered by `AppShell`, so asserting on a bare <h1> would prove nothing.
+    renderShell()
+    await submitCredentials()
+
+    // Still arrives at the app, not back on the form.
+    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
+
+    // And the session survives, so the next request can succeed.
+    const stored = window.localStorage.getItem('wazobia.auth-session.v1')
+    expect(stored).not.toBeNull()
+    const parsed = JSON.parse(String(stored)) as { accessToken: string }
+    expect(parsed.accessToken).toBe(ACCESS_TOKEN)
+
+    // Silence would be the old bug; the user is told what happened.
+    expect(
+      await screen.findByText(/could not verify your session|still signed in/i),
+    ).toBeInTheDocument()
+
+    authenticated = true
   })
 
   it('persists the session so a reload does not ask again', async () => {

@@ -16,7 +16,7 @@ import { createTokenVerifier } from '../../_lib/auth/verify.js'
 import { protect, requireRole } from '../../_lib/auth/guard.js'
 import { createRestUserLookup } from '../../_lib/auth/users.js'
 import { createRestRateLimiter } from '../../_lib/rate-limit.js'
-import { readServerConfig, issuerFor } from '../../_lib/config.js'
+import { readServerConfig, issuerFor, jwksUrlFor, canAuthenticate } from '../../_lib/config.js'
 import { jsonResponse } from '../../_lib/http.js'
 import { errorEnvelope } from '../../_lib/envelope.js'
 import { resolveRequestId } from '../../_lib/request-id.js'
@@ -30,8 +30,12 @@ export default async function handler(
   const httpRequest = toHttpRequest(request)
   const requestId = resolveRequestId(httpRequest.requestIdHeader)
 
+  // Review needs a real database (URL + anon key) plus *some* way to verify a
+  // token. The HMAC secret is only needed for HS256 projects; ES256 projects
+  // verify against the published JWKS instead, so demanding the secret here
+  // excluded every such deployment.
   if (
-    config.supabaseJwtSecret === null ||
+    !canAuthenticate(config) ||
     config.supabaseUrl === null ||
     config.supabaseAnonKey === null
   ) {
@@ -49,6 +53,7 @@ export default async function handler(
 
   const verify = createTokenVerifier({
     jwtSecret: config.supabaseJwtSecret,
+    jwksUrl: jwksUrlFor(config),
     issuer: issuerFor(config),
   })
 
