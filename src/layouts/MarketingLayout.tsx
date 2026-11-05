@@ -3,7 +3,6 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { WazobiaLogo } from '@/components/brand/WazobiaLogo'
 import { brand } from '@/config/brand'
 import { DESTINATIONS } from '@/config/destinationRegistry'
-import { useSession } from '@/hooks/useSession'
 import { cn } from '@/utils/cn'
 
 /** Computed once at module load — calling `new Date()` during render is impure. */
@@ -25,7 +24,6 @@ const NAV_LINKS = [
  */
 export function MarketingLayout() {
   const location = useLocation()
-  const { isGuest } = useSession()
 
   /**
    * Reset scroll when the visitor lands on a page without an anchor.
@@ -79,14 +77,14 @@ export function MarketingLayout() {
               Log in
             </Link>
             <Link
-              to={isGuest ? '/app' : '/signup'}
+              to="/signup"
               className={cn(
                 'inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] px-3.5',
                 'bg-brand-800 text-[0.875rem] font-medium text-on-brand',
                 'transition-colors hover:bg-brand-900',
               )}
             >
-              {isGuest ? 'Open WAZOBIA' : 'Create account'}
+              Create account
             </Link>
           </div>
         </div>
@@ -127,7 +125,6 @@ export function MarketingLayout() {
               links={[
                 { label: 'Create free account', href: '/signup', to: true },
                 { label: 'Log in', href: '/login', to: true },
-                { label: 'Continue as guest', href: '/app', to: true },
               ]}
             />
           </div>

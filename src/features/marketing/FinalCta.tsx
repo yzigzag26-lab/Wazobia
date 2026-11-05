@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom'
-import { useSession } from '@/hooks/useSession'
 
 export function FinalCta() {
-  const { isGuest, startGuestSession } = useSession()
-
   return (
     <section className="border-t border-paper-200 bg-paper-100" aria-labelledby="cta-heading">
       <div className="mx-auto w-full max-w-[80rem] px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
@@ -15,8 +12,8 @@ export function FinalCta() {
                 Africa speaks. Come and understand it.
               </h2>
               <p className="mt-4 max-w-[52ch] text-[0.9375rem] leading-7 text-ink-600">
-                Explore the platform today as a guest, or create an account to keep your progress
-                when accounts go live.
+                Create an account to start learning. Your progress, streak and preferences are
+                saved to it, so they are waiting for you on any device.
               </p>
 
               <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -27,16 +24,15 @@ export function FinalCta() {
                   Create free account
                 </Link>
                 <Link
-                  to="/app"
-                  onClick={startGuestSession}
+                  to="/login"
                   className="inline-flex h-11 items-center rounded-[var(--radius-button)] border border-paper-400 bg-white px-5 text-[0.9375rem] font-medium text-ink-800 transition-colors hover:border-forest-600 hover:text-forest-800"
                 >
-                  {isGuest ? 'Continue to app' : 'Continue as guest'}
+                  Log in
                 </Link>
               </div>
 
               <p className="mt-4 text-xs text-ink-500">
-                Guest access is stored only in this browser and grants no account privileges.
+                Free to create. No email confirmation is required, so you can start immediately.
               </p>
             </div>
 

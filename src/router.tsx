@@ -12,6 +12,7 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, type RouteObject } from 'react-router-dom'
 import { AppShell } from '@/layouts/AppShell'
+import { RequireAuth } from '@/components/auth/RequireAuth'
 import { MarketingLayout } from '@/layouts/MarketingLayout'
 import { RouteFallback } from '@/components/layout/RouteFallback'
 import RouteErrorPage from '@/pages/RouteErrorPage'
@@ -23,7 +24,7 @@ import RouteErrorPage from '@/pages/RouteErrorPage'
  *   /signup      registration (frontend-only, no backend call)
  *   /login       login (frontend-only, no backend call)
  *   /onboarding  ten-question questionnaire, one per page (skippable, local only)
- *   /app         application entry — works immediately for guests
+ *   /app         application entry — signed-in only (RequireAuth)
  *   /app/*       the five destinations
  *
  * Learn is the only destination with a nested tree:
@@ -109,7 +110,19 @@ export const routes: RouteObject[] = [
       /* ------------------------------------------------------- application */
       {
         path: '/app',
-        element: <AppShell />,
+        /*
+         * Signed-in only. Guest access was removed from WAZOBIA, so every route
+         * under /app sits behind this gate. It redirects to /login and restores
+         * the requested path after sign-in.
+         *
+         * A navigation affordance, not a security boundary — the API verifies
+         * the bearer token on every protected endpoint regardless.
+         */
+        element: (
+          <RequireAuth>
+            <AppShell />
+          </RequireAuth>
+        ),
         children: [
           { index: true, element: page(<AppEntryPage />) },
 

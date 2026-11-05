@@ -14,14 +14,14 @@ import { ProfileForm } from './ProfileForm'
  * One screen, four groups: who you are, the language you are studying, your
  * learning preferences, and the way into Settings.
  *
- * The header says plainly that this is stored on the device. A profile that
- * implies an account is the single easiest lie a frontend can tell, and the
- * brief rules it out.
+ * The header distinguishes what is saved to the account from what is held in
+ * this browser. A profile that overstates either is the easiest lie a frontend
+ * can tell, and the brief rules it out.
  */
 export default function ProfilePage() {
   const { details, onboarding, primaryLanguage, primaryLanguageIsExplicit } = useProfile()
 
-  const displayName = details.fullName.trim() || 'Guest learner'
+  const displayName = details.fullName.trim() || 'Your account'
   const initial = displayName.charAt(0).toUpperCase()
 
   return (
@@ -62,7 +62,9 @@ export default function ProfilePage() {
               <Badge tone={details.email ? 'neutral' : 'pending'}>
                 {details.email ? 'Email unverified' : 'No email set'}
               </Badge>
-              <Badge tone="neutral">Guest session</Badge>
+              {/* No "guest" badge: the app area requires an account, so there
+                  is no such session to describe. */}
+              <Badge tone="neutral">Signed in</Badge>
             </div>
           </div>
         </div>

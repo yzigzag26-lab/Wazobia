@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { createQueryClient } from '@/lib/queryClient'
 import { LanguagePreferenceProvider } from '@/stores/languagePreference'
-import { SessionProvider } from '@/stores/session'
 import { AuthProvider } from '@/stores/auth'
 import { ThemeProvider } from '@/stores/theme'
 import { ProfileProvider } from '@/stores/profile'
@@ -22,12 +21,10 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Tooltip.Provider delayDuration={400} skipDelayDuration={200}>
-        {/* Auth wraps the guest session: a signed-in user and a guest are two
-            different kinds of session, and the guest layer must not be
-            initialised before we know which one applies. */}
+        {/* Auth sits outermost: the application area requires a session, and
+            there is no anonymous or guest alternative to fall back to. */}
         <AuthProvider>
-          <SessionProvider>
-            <LanguagePreferenceProvider>
+          <LanguagePreferenceProvider>
             {/*
               Theme sits outside the router so the palette is applied before any
               route renders — a light flash on a dark-preference device is a bug,
@@ -40,8 +37,7 @@ export function App() {
                   <RouterProvider router={router} />
                 </ProfileProvider>
               </ThemeProvider>
-            </LanguagePreferenceProvider>
-          </SessionProvider>
+          </LanguagePreferenceProvider>
         </AuthProvider>
       </Tooltip.Provider>
     </QueryClientProvider>

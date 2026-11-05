@@ -1,59 +1,45 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { StateMessage } from '@/components/ui/StateMessage'
-import { Button } from '@/components/ui/Button'
-import { IconArrowRight, IconInfo } from '@/components/ui/icons'
+import { IconInfo } from '@/components/ui/icons'
 import { DestinationCard } from '@/components/layout/DestinationCard'
 import { DESTINATIONS } from '@/config/destinationRegistry'
-import { useSession } from '@/hooks/useSession'
+import { useAuth } from '@/hooks/useAuth'
 import { TARGET_LANGUAGES } from '@/config/languages'
 import { useLanguagePreference } from '@/hooks/useLanguagePreference'
 
 /**
  * Application entry (`/app`).
  *
- * Reachable by a guest, an anonymous visitor or a future signed-in account. When
- * nobody is in a session, it offers guest access rather than bouncing the
- * visitor to a login wall — the brief requires guest access to work immediately.
+ * Signed-in only. Guest access was removed from the platform, so there is no
+ * anonymous path into the app area and no "continue as guest" affordance here —
+ * `/app/*` is wrapped in `RequireAuth`, which redirects to `/login` and returns
+ * the user to this page afterwards.
  */
 export default function AppEntryPage() {
-  const { isGuest, startGuestSession } = useSession()
+  const { profile } = useAuth()
   const { language } = useLanguagePreference()
-  const navigate = useNavigate()
+  const firstName = profile?.display_name.trim().split(/\s+/)[0] ?? ''
 
   return (
     <div>
       <header className="border-b border-paper-200 pb-6">
-        <p className="text-eyebrow text-ink-500">
-          {isGuest ? 'Guest session' : 'Application'}
-        </p>
+        <p className="text-eyebrow text-ink-500">Application</p>
         <h1 className="text-display mt-2.5 text-[1.75rem] text-ink-900 sm:text-[2.125rem]">
-          {isGuest ? 'Welcome, guest.' : 'Welcome to WAZOBIA.'}
+          {firstName.length > 0 ? `Welcome back, ${firstName}.` : 'Welcome to WAZOBIA.'}
         </h1>
         <p className="mt-2.5 max-w-[58ch] text-[0.9375rem] leading-7 text-ink-600">
-          {isGuest
-            ? 'You can move through every public part of the platform. WAZOBIA Learn works fully, and your progress is kept in this browser; anything that would need an account — sync, favourites, contributions — is switched off and labelled as such.'
-            : 'Choose a destination to begin, or continue as a guest to explore without an account.'}
+          Choose a destination to begin. Your progress, streak and language preference are saved
+          to your account, so they follow you between devices.
         </p>
 
-        {!isGuest ? (
-          <div className="mt-5 flex flex-wrap gap-2.5">
-            <Button
-              onClick={() => {
-                startGuestSession()
-                navigate('/app', { replace: true })
-              }}
-              leadingIcon={<IconArrowRight width={15} height={15} />}
-            >
-              Continue as guest
-            </Button>
-            <Link
-              to="/signup"
-              className="inline-flex h-10 items-center rounded-[var(--radius-button)] border border-paper-400 bg-white px-4 text-sm font-medium text-ink-800 hover:border-forest-600 hover:text-forest-800"
-            >
-              Create free account
-            </Link>
-          </div>
-        ) : null}
+        <div className="mt-5 flex flex-wrap gap-2.5">
+          <Link
+            to="/onboarding"
+            className="inline-flex h-10 items-center rounded-[var(--radius-button)] border border-paper-400 bg-white px-4 text-sm font-medium text-ink-800 hover:border-forest-600 hover:text-forest-800"
+          >
+            {profile?.preferred_language ? 'Update your preferences' : 'Set up your preferences'}
+          </Link>
+        </div>
       </header>
 
       <section className="mt-8" aria-labelledby="app-destinations">
@@ -75,19 +61,16 @@ export default function AppEntryPage() {
         </ul>
       </section>
 
-      <section className="mt-10 grid gap-4 lg:grid-cols-2" aria-label="Session status">
+      <section className="mt-10 grid gap-4 lg:grid-cols-2" aria-label="Account status">
         <StateMessage
-          tone="waiting"
+          tone="info"
           icon={<IconInfo width={18} height={18} />}
-          title="What guests can and cannot do"
+          title="Saved to your account"
           description={
             <ul className="mt-1 list-disc space-y-1 pl-4">
-              <li>Browse public pages and open every destination.</li>
-              <li>
-                Study, take quizzes and read stories — progress is kept in this browser only.
-              </li>
-              <li>Nothing is saved to an account, because there is no account service yet.</li>
-              <li>No moderation, review or administrative actions are available.</li>
+              <li>Destination progress, study streak and quiz results.</li>
+              <li>Your primary language and interface preferences.</li>
+              <li>Storage endpoints require a signed-in session; the API rejects anonymous calls.</li>
             </ul>
           }
         />

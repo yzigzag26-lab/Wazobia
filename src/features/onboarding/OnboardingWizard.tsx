@@ -5,7 +5,6 @@ import { StateMessage } from '@/components/ui/StateMessage'
 import { IconArrowRight, IconCheck, IconInfo } from '@/components/ui/icons'
 import { WazobiaLogo } from '@/components/brand/WazobiaLogo'
 import { onboardingService } from '@/services/onboarding'
-import { useSession } from '@/hooks/useSession'
 import { useProfile } from '@/hooks/useProfile'
 import { CommunityInviteModal } from '@/features/community/CommunityInviteModal'
 import { createEmptyOnboardingProfile, type UserOnboardingProfile } from '@/types/onboarding'
@@ -39,7 +38,6 @@ function scrollToTop(): void {
  */
 export function OnboardingWizard() {
   const navigate = useNavigate()
-  const { isGuest } = useSession()
   const profileStore = useProfile()
 
   const [index, setIndex] = useState(0)
@@ -167,7 +165,7 @@ export function OnboardingWizard() {
           title={storedLocally ? 'Saved as a local draft' : 'Draft could not be stored'}
           description={
             storedLocally
-              ? 'Your preferences stay on this device and will be used once accounts are connected. Clearing your browser data removes them.'
+              ? 'Your preferences are saved to this browser and applied to your account experience. Clearing browser data removes them.'
               : 'This browser blocked local storage, so your answers will be lost when you leave this page. You can still continue into WAZOBIA.'
           }
         />
@@ -191,13 +189,6 @@ export function OnboardingWizard() {
             Review my answers
           </Button>
         </div>
-
-        {isGuest ? (
-          <p className="mt-5 text-center text-xs text-ink-500">
-            You are still signed in as a guest. Creating an account later will keep these
-            preferences.
-          </p>
-        ) : null}
 
         {/*
           Rendered only in this completion phase, never on a normal login and never
