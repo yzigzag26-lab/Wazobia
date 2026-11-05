@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { WazobiaLogo } from '@/components/brand/WazobiaLogo'
 import { IconArrowRight } from '@/components/ui/icons'
-import { useSession } from '@/hooks/useSession'
 
 /** Greetings used as the hero's language gesture — attested, ordinary greetings. */
 const GREETINGS = [
@@ -11,8 +10,6 @@ const GREETINGS = [
 ] as const
 
 export function Hero() {
-  const { isGuest, startGuestSession } = useSession()
-
   return (
     <section className="relative overflow-hidden" aria-labelledby="hero-heading">
       {/* One soft radial brand glow behind the emblem. No gradient washes. */}
@@ -57,23 +54,14 @@ export function Hero() {
             </div>
 
             <p className="mt-4 text-[0.9375rem] text-ink-500">
-              {isGuest ? (
-                <Link to="/app" className="font-medium text-forest-700 underline underline-offset-4 hover:text-forest-800">
-                  You are browsing as a guest — open the app
-                </Link>
-              ) : (
-                <>
-                  Not ready to sign up?{' '}
-                  <Link
-                    to="/app"
-                    onClick={startGuestSession}
-                    className="font-medium text-forest-700 underline underline-offset-4 hover:text-forest-800"
-                  >
-                    Continue as guest
-                  </Link>{' '}
-                  — no account needed.
-                </>
-              )}
+              Already have an account?{' '}
+              <Link
+                to="/login"
+                className="font-medium text-forest-700 underline underline-offset-4 hover:text-forest-800"
+              >
+                Log in
+              </Link>
+              .
             </p>
 
             {/* Language gesture */}

@@ -73,8 +73,8 @@ export default function SecuritySettings() {
           This device
         </h2>
         <p className="mt-1 max-w-[58ch] text-[0.8125rem] leading-6 text-ink-600">
-          You are using WAZOBIA as a guest. The profile details, onboarding answers and learning
-          progress on this device are held in this browser only.
+          You are signed in to a WAZOBIA account. Your credentials are held by Supabase Auth and
+          never by this application; the details below come from the server.
         </p>
 
         <dl className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -83,14 +83,16 @@ export default function SecuritySettings() {
               Signed in as
             </dt>
             <dd className="mt-1 text-[0.875rem] text-ink-900">
-              {details.email || 'Guest — no email'}
+              {details.email || 'No email on this account'}
             </dd>
           </div>
           <div className="rounded-[var(--radius-md)] border border-paper-200 bg-paper-50 px-3 py-2.5">
             <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-ink-400">
               Session type
             </dt>
-            <dd className="mt-1 text-[0.875rem] text-ink-900">Guest, local only</dd>
+            <dd className="mt-1 text-[0.875rem] text-ink-900">
+              Account · token refreshed automatically
+            </dd>
           </div>
         </dl>
 

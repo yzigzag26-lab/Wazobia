@@ -1,10 +1,9 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
 import { CheckboxField, Field } from '@/components/ui/Field'
 import { StateMessage } from '@/components/ui/StateMessage'
 import { IconInfo } from '@/components/ui/icons'
-import { useSession } from '@/hooks/useSession'
 import { useAuth } from '@/hooks/useAuth'
 import { AuthError } from '@/services/authClient'
 import {
@@ -30,8 +29,10 @@ const INITIAL: LoginValues = { identifier: '', password: '' }
  * regardless — and the honest failure for an unconfirmed one is the message
  * below.
  *
- * "Continue as guest" is kept: public pages genuinely work without an account.
- * Protected endpoints answer 401, and the UI says so rather than pretending.
+ * Guest access has been removed: the application area requires an account, so
+ * this form has no "continue without signing in" escape. The public marketing
+ * pages remain reachable without a session — those need no account because they
+ * make no authenticated request.
  */
 export function LoginForm() {
   const [values, setValues] = useState<LoginValues>(INITIAL)
@@ -39,9 +40,9 @@ export function LoginForm() {
   const [remember, setRemember] = useState(false)
   const [touched, setTouched] = useState<Partial<Record<LoginField, boolean>>>({})
   const [recoveryNotice, setRecoveryNotice] = useState(false)
-  const { startGuestSession } = useSession()
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [submitting, setSubmitting] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
@@ -73,7 +74,12 @@ export function LoginForm() {
       // The identifier is an email: accounts are email-based, and the field
       // label says so once the user starts typing something without an "@".
       await signIn(values.identifier.trim(), values.password)
-      navigate('/app', { replace: true })
+      // Return the user to the page that sent them here (RequireAuth records it
+      // in `location.state.from`). Falling back to /app is right for a direct
+      // visit to /login.
+      const from = (location.state as { from?: string } | null)?.from
+      const destination = typeof from === 'string' && from.startsWith('/app') ? from : '/app'
+      navigate(destination, { replace: true })
     } catch (error) {
       if (error instanceof AuthError) {
         setFailure(error.message)
@@ -83,11 +89,6 @@ export function LoginForm() {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  function continueAsGuest() {
-    startGuestSession()
-    navigate('/app', { replace: true })
   }
 
   return (
@@ -169,20 +170,12 @@ export function LoginForm() {
         {submitting ? 'Signing in…' : 'Log in'}
       </Button>
 
-      <div className="relative py-1 text-center">
-        <span className="relative z-10 bg-paper-50 px-3 text-xs uppercase tracking-[0.1em] text-ink-400">
-          or
-        </span>
-        <span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-px bg-paper-300" />
-      </div>
-
-      <Button variant="secondary" fullWidth onClick={continueAsGuest} type="button">
-        Continue as guest
-      </Button>
-
       <p className="text-center text-xs leading-5 text-ink-500">
-        Guest access is stored in this browser only. It creates no account and grants no
-        privileges.
+        No account yet?{' '}
+        <Link to="/signup" className="font-medium text-forest-700 underline underline-offset-4">
+          Create one
+        </Link>{' '}
+        — it takes a moment and needs no email confirmation.
       </p>
     </form>
   )

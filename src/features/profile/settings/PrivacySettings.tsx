@@ -85,8 +85,9 @@ export default function PrivacySettings() {
         </ul>
         <p className="mt-3 flex items-start gap-2 text-[0.75rem] leading-5 text-ink-400">
           <IconShield width={14} height={14} className="mt-0.5 shrink-0" />
-          Guest access creates no Supabase user. The platform’s session layer is not wired to
-          anything in this build, by design.
+          Your account is held by Supabase Auth. WAZOBIA stores a display name, a preferred
+          language and your learning progress; it does not store your password and does not sell or
+          share any of it.
         </p>
       </section>
 

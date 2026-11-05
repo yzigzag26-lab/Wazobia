@@ -1,10 +1,9 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
 import { CheckboxField, Field, RuleList } from '@/components/ui/Field'
 import { StateMessage } from '@/components/ui/StateMessage'
 import { IconArrowRight, IconInfo } from '@/components/ui/icons'
-import { useSession } from '@/hooks/useSession'
 import { useAuth } from '@/hooks/useAuth'
 import { AuthError } from '@/services/authClient'
 import {
@@ -52,7 +51,6 @@ export function SignUpForm() {
   const [errors, setErrors] = useState<FieldErrors<SignUpField>>({})
   const [submitted, setSubmitted] = useState(false)
   const [touched, setTouched] = useState<Partial<Record<SignUpField, boolean>>>({})
-  const { startGuestSession } = useSession()
   const { signUp } = useAuth()
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
@@ -109,11 +107,6 @@ export function SignUpForm() {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  function continueAsGuest() {
-    startGuestSession()
-    navigate('/app', { replace: true })
   }
 
   if (submitted) {
@@ -251,16 +244,12 @@ export function SignUpForm() {
         documents are drafts until legal review is complete.
       </p>
 
-      <div className="relative py-1 text-center">
-        <span className="relative z-10 bg-paper-50 px-3 text-xs uppercase tracking-[0.1em] text-ink-400">
-          or
-        </span>
-        <span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-px bg-paper-300" />
-      </div>
-
-      <Button variant="secondary" fullWidth onClick={continueAsGuest} type="button">
-        Continue as guest
-      </Button>
+      <p className="text-center text-xs leading-5 text-ink-500">
+        Already have an account?{' '}
+        <Link to="/login" className="font-medium text-forest-700 underline underline-offset-4">
+          Log in
+        </Link>
+      </p>
 
     </form>
   )

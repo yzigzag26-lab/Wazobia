@@ -5,7 +5,6 @@ import * as Tooltip from '@radix-ui/react-tooltip'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { createQueryClient } from '@/lib/queryClient'
-import { SessionProvider } from '@/stores/session'
 import { LanguagePreferenceProvider } from '@/stores/languagePreference'
 import { ThemeProvider } from '@/stores/theme'
 import { ProfileProvider } from '@/stores/profile'
@@ -27,15 +26,13 @@ function Harness({ children }: { readonly children: React.ReactNode }) {
   return (
     <QueryClientProvider client={createQueryClient()}>
       <Tooltip.Provider>
-        <SessionProvider>
-          <LanguagePreferenceProvider>
-            <ThemeProvider>
-              <ProfileProvider>
-                <MemoryRouter>{children}</MemoryRouter>
-              </ProfileProvider>
-            </ThemeProvider>
-          </LanguagePreferenceProvider>
-        </SessionProvider>
+        <LanguagePreferenceProvider>
+          <ThemeProvider>
+            <ProfileProvider>
+              <MemoryRouter>{children}</MemoryRouter>
+            </ProfileProvider>
+          </ThemeProvider>
+        </LanguagePreferenceProvider>
       </Tooltip.Provider>
     </QueryClientProvider>
   )

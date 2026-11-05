@@ -8,7 +8,8 @@ import { findDestinationByPath } from '@/config/destinationRegistry'
 import { brand } from '@/config/brand'
 import { cn } from '@/utils/cn'
 import { MobileHeader } from './MobileHeader'
-import { GuestBanner } from '@/components/layout/GuestBanner'
+import { AccountMenu } from '@/components/layout/AccountMenu'
+import { ReviewLink } from '@/components/layout/ReviewLink'
 
 /**
  * The single application shell.
@@ -71,7 +72,16 @@ export function AppShell() {
             : 'pb-[calc(var(--spacing-mobile-nav)+env(safe-area-inset-bottom))]',
         )}
       >
-        <GuestBanner />
+        {/* Signed-in only from here down, so this strip carries the account
+            controls rather than a guest notice. */}
+        <div className="border-b border-paper-200 bg-paper-50">
+          <div className="mx-auto flex w-full max-w-[74rem] items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-10">
+            <ReviewLink />
+            <div className="ml-auto">
+              <AccountMenu />
+            </div>
+          </div>
+        </div>
 
         <main
           id="main-content"

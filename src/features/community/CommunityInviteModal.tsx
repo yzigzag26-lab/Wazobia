@@ -12,7 +12,7 @@ import { WHATSAPP_COMMUNITY_URL } from './whatsapp'
  *    either answer writes a permanent outcome. It cannot come back.
  *  - **Only after registration + verification + onboarding.** The pending state
  *    is armed in exactly one place: `completeOnboarding()` on the wizard's
- *    completion step. A normal login, a return visit or a guest who skipped the
+ *    completion step. A normal login or a return visit never triggers it, and
  *    questionnaire therefore never sees it.
  *  - **Optional.** "Skip for now" carries the same visual weight as joining,
  *    Escape closes it, and it is never a gate in front of the app.
