@@ -7,7 +7,7 @@ still render the frontend's honest *not connected* state.
 | Endpoint | Handler | Schema |
 |---|---|---|
 | §2.1 `GET /languages` | ✅ `api/v1/languages.ts` | ✅ `languages`, `dialects` |
-| §2.2 `GET /users/me` | — | ✅ `profiles`, `user_roles` |
+| §2.2 `GET`/`PATCH /users/me` | — | ✅ `profiles`, `user_roles` |
 | §2.3 `POST /ai/chat` | — | ✅ `conversations`, `conversation_messages` |
 | §2.4 `POST /translate` | — | n/a (stateless) |
 | §2.5 `GET /dictionary/search` | — | ✅ `dictionary_entries` |
@@ -121,13 +121,58 @@ an empty list would render as "no languages available", which is a lie.
 
 ---
 
-### 2.2 `GET /api/v1/users/me`
+### 2.2 `GET` / `PATCH /api/v1/users/me`
 
-Auth: **required** (Bearer session token).
+Auth: **required** (Bearer session token). The subject is always the token's
+`sub`; there is no id parameter, so one caller cannot address another's profile.
+
+**GET**
 
 ```json
-{ "success": true, "data": { "id": "uuid", "display_name": "string", "preferred_language": "yo", "roles": ["contributor"], "created_at": "ISO-8601" }, "request_id": "req_..." }
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "display_name": "Zigzag Y",
+    "username": "zigzag",
+    "preferred_language": "yo",
+    "email": "user@example.com",
+    "roles": ["learner", "reviewer"],
+    "created_at": "ISO-8601"
+  },
+  "request_id": "req_..."
+}
 ```
+
+- `username` is `null` when the account has never chosen one. It is **not**
+  coerced to an empty string: "no handle" and "empty handle" are different
+  states, and the UI renders them differently.
+- `email` comes from the verified session token. `profiles` deliberately has no
+  email column, so there is no second copy to fall out of sync.
+
+**PATCH** — update your own details.
+
+```json
+{ "display_name": "Adaeze Okonkwo", "username": "ada.okonkwo", "preferred_language": "ig" }
+```
+
+Every field is optional; only what is sent is written. `username: null` clears
+the handle. Unknown keys are **rejected with 400**, not ignored — silently
+dropping a field a client believed it sent produces "I changed it and nothing
+happened" bugs.
+
+| Field | Rule |
+|---|---|
+| `display_name` | 1–80 characters after trimming |
+| `username` | `^[a-z0-9_.]{3,24}$`, unique case-insensitively; `null` clears it |
+| `preferred_language` | a `languages.code`, or `null` |
+
+Errors: `400 VALIDATION_ERROR` (with `details.fields[]` naming each field),
+`409 CONFLICT` (username taken), `422 SEMANTIC_ERROR` (a database constraint the
+API does not model), `404 NOT_FOUND` (no profile row matched), `429 RATE_LIMITED`.
+
+Returns the **stored** profile, so the client renders what the server holds
+rather than echoing its own input back as if it were saved.
 
 Errors: `UNAUTHENTICATED`, `FORBIDDEN`.
 Note: `roles` is informational for UI only. **Authorization is enforced server-side** — hiding a

@@ -310,6 +310,15 @@ export interface SignUpInput {
   readonly email: string
   readonly password: string
   readonly displayName?: string | undefined
+  /**
+   * Public handle, carried in user metadata so the `handle_new_user` trigger can
+   * write `profiles.username` without a second round trip.
+   *
+   * The registration form collected this from the beginning and then discarded
+   * it, because there was nowhere to store it. Migration 0006 added the column;
+   * this is what fills it in.
+   */
+  readonly username?: string | undefined
 }
 
 export const authService = {
@@ -320,9 +329,18 @@ export const authService = {
       password: input.password,
       // `display_name` is read by the `handle_new_user` trigger to populate
       // `profiles.display_name` (migration 0001, clamped in 0004).
-      ...(input.displayName === undefined || input.displayName.trim().length === 0
+      ...(input.displayName === undefined && input.username === undefined
         ? {}
-        : { data: { display_name: input.displayName.trim() } }),
+        : {
+            data: {
+              ...(input.displayName === undefined || input.displayName.trim().length === 0
+                ? {}
+                : { display_name: input.displayName.trim() }),
+              ...(input.username === undefined || input.username.trim().length === 0
+                ? {}
+                : { username: input.username.trim().toLowerCase() }),
+            },
+          }),
     })
 
     const session = toSession(payload, Date.now())

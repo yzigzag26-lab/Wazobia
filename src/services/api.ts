@@ -8,6 +8,7 @@ import type {
   Lesson,
   ListLanguagesResponse,
   Profile,
+  ProfileUpdate,
   TranslateRequest,
   TranslateResponse,
 } from './contracts/endpoints'
@@ -64,6 +65,22 @@ export const userService = {
     apiRequest<Profile>('/users/me', {
       accessToken,
       ...(signal === undefined ? {} : { signal }),
+    }),
+
+  /**
+   * `PATCH /api/v1/users/me` — save the caller's own details.
+   *
+   * Returns the refreshed profile, so the UI can render what the server
+   * actually stored rather than what it hoped it stored.
+   */
+  update: async (
+    update: ProfileUpdate,
+    accessToken: string | undefined,
+  ): Promise<Profile> =>
+    apiRequest<Profile>('/users/me', {
+      method: 'PATCH',
+      body: update,
+      accessToken,
     }),
 }
 

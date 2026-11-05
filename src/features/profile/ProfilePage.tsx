@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Badge } from '@/components/ui/Badge'
@@ -14,22 +15,29 @@ import { ProfileForm } from './ProfileForm'
  * One screen, four groups: who you are, the language you are studying, your
  * learning preferences, and the way into Settings.
  *
- * The header distinguishes what is saved to the account from what is held in
- * this browser. A profile that overstates either is the easiest lie a frontend
- * can tell, and the brief rules it out.
+ * Identity comes from the ACCOUNT (`/users/me`), not from the device-local
+ * store. The local store used to feed this header, which is why a signed-in user
+ * saw "No username set" and "No email set" while their account plainly had both:
+ * the page was reading a localStorage entry that registration never wrote.
+ *
+ * Onboarding answers genuinely are device-local — there is no server table for
+ * them — and the page says so rather than implying they follow the account.
  */
 export default function ProfilePage() {
-  const { details, onboarding, primaryLanguage, primaryLanguageIsExplicit } = useProfile()
+  const { profile } = useAuth()
+  const { onboarding, primaryLanguage, primaryLanguageIsExplicit } = useProfile()
 
-  const displayName = details.fullName.trim() || 'Your account'
+  const displayName = profile?.display_name.trim() || 'Your account'
   const initial = displayName.charAt(0).toUpperCase()
+  const username = profile?.username ?? null
+  const email = profile?.email ?? null
 
   return (
     <div className="space-y-7">
       <PageHeader
         eyebrow={<span>Profile</span>}
         title="Your profile"
-        description="Your details and preferences. Everything here is stored in this browser on this device — WAZOBIA does not have an account service yet, so nothing is uploaded and nothing syncs to another device."
+        description="Your name, username and language come from your account, so they follow you to any device you sign in on."
         actions={
           <Link to="/app/profile/settings">
             <Button variant="secondary" leadingIcon={<IconLock width={14} height={14} />}>
@@ -50,18 +58,24 @@ export default function ProfilePage() {
             aria-hidden="true"
             className="grid size-14 shrink-0 place-items-center rounded-full border border-paper-300 bg-paper-100 text-[1.375rem] font-semibold text-forest-800"
           >
-            {details.fullName.trim() ? initial : <IconUser width={22} height={22} />}
+            {profile?.display_name.trim() ? initial : <IconUser width={22} height={22} />}
           </span>
 
           <div className="min-w-0">
             <p className="text-[1.125rem] font-semibold leading-6 text-ink-900">{displayName}</p>
             <p className="mt-0.5 text-[0.875rem] text-ink-500">
-              {details.username ? `@${details.username}` : 'No username set'}
+              {username === null ? (
+                <span className="text-ink-400">No username set</span>
+              ) : (
+                <span>@{username}</span>
+              )}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge tone={details.email ? 'neutral' : 'pending'}>
-                {details.email ? 'Email unverified' : 'No email set'}
-              </Badge>
+              {/* The address comes from the verified session, so it is a fact
+                  rather than a claim. "Unverified" would be wrong: Supabase
+                  confirmed it at sign-up, and there is no verification email to
+                  send because none is needed. */}
+              <Badge tone="neutral">{email === null ? 'No email on file' : 'Email confirmed'}</Badge>
               {/* No "guest" badge: the app area requires an account, so there
                   is no such session to describe. */}
               <Badge tone="neutral">Signed in</Badge>
@@ -69,12 +83,9 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {details.email ? (
-          <p className="mt-3 text-[0.75rem] leading-5 text-ink-400">
-            {details.email} — the address has not been verified. No verification email has been
-            sent, and WAZOBIA cannot send one yet.
-          </p>
-        ) : null}
+        {email === null ? null : (
+          <p className="mt-3 text-[0.75rem] leading-5 text-ink-400">{email}</p>
+        )}
       </section>
 
       {/* ---------------------------------------------------------- the form */}

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { AuthProvider } from '@/stores/auth'
+import { ProfileProvider } from '@/stores/profile'
 import TranslatePage from '@/features/translate/TranslatePage'
 import AiPage from '@/features/ai/AiPage'
 
@@ -29,7 +30,10 @@ vi.mock('@/config/env', () => ({
 function renderWithProviders(node: React.ReactNode) {
   return render(
     <Tooltip.Provider>
-      <AuthProvider>{node}</AuthProvider>
+      {/* Same provider order as `App.tsx`: Profile outside Auth. */}
+      <ProfileProvider>
+        <AuthProvider>{node}</AuthProvider>
+      </ProfileProvider>
     </Tooltip.Provider>,
   )
 }

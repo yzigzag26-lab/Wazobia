@@ -103,10 +103,10 @@ function renderShell() {
   return render(
     <QueryClientProvider client={createQueryClient()}>
       <Tooltip.Provider>
-        <AuthProvider>
-          <LanguagePreferenceProvider>
-            <ThemeProvider>
-              <ProfileProvider>
+        <ProfileProvider>
+          <AuthProvider>
+            <LanguagePreferenceProvider>
+              <ThemeProvider>
                 <MemoryRouter initialEntries={['/login']}>
                   <Routes>
                     <Route path="/login" element={<LoginForm />} />
@@ -115,10 +115,10 @@ function renderShell() {
                     </Route>
                   </Routes>
                 </MemoryRouter>
-              </ProfileProvider>
-            </ThemeProvider>
-          </LanguagePreferenceProvider>
-        </AuthProvider>
+              </ThemeProvider>
+            </LanguagePreferenceProvider>
+          </AuthProvider>
+        </ProfileProvider>
       </Tooltip.Provider>
     </QueryClientProvider>,
   )
@@ -128,10 +128,10 @@ function renderApp() {
   return render(
     <QueryClientProvider client={createQueryClient()}>
       <Tooltip.Provider>
-        <AuthProvider>
-          <LanguagePreferenceProvider>
-            <ThemeProvider>
-              <ProfileProvider>
+        <ProfileProvider>
+          <AuthProvider>
+            <LanguagePreferenceProvider>
+              <ThemeProvider>
                 <MemoryRouter initialEntries={['/login']}>
                   <Routes>
                     <Route path="/login" element={<LoginForm />} />
@@ -153,10 +153,10 @@ function renderApp() {
                     />
                   </Routes>
                 </MemoryRouter>
-              </ProfileProvider>
-            </ThemeProvider>
-          </LanguagePreferenceProvider>
-        </AuthProvider>
+              </ThemeProvider>
+            </LanguagePreferenceProvider>
+          </AuthProvider>
+        </ProfileProvider>
       </Tooltip.Provider>
     </QueryClientProvider>,
   )
@@ -343,10 +343,10 @@ describe('sign-in flow', () => {
     render(
       <QueryClientProvider client={createQueryClient()}>
         <Tooltip.Provider>
-          <AuthProvider>
-            <LanguagePreferenceProvider>
-              <ThemeProvider>
-                <ProfileProvider>
+          <ProfileProvider>
+            <AuthProvider>
+              <LanguagePreferenceProvider>
+                <ThemeProvider>
                   <MemoryRouter
                     initialEntries={[
                       { pathname: '/login', state: { from: '/app/learn' } },
@@ -364,10 +364,10 @@ describe('sign-in flow', () => {
                       />
                     </Routes>
                   </MemoryRouter>
-                </ProfileProvider>
-              </ThemeProvider>
-            </LanguagePreferenceProvider>
-          </AuthProvider>
+                </ThemeProvider>
+              </LanguagePreferenceProvider>
+            </AuthProvider>
+          </ProfileProvider>
         </Tooltip.Provider>
       </QueryClientProvider>,
     )

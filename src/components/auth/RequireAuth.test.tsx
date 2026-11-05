@@ -33,10 +33,12 @@ function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Tooltip.Provider>
-        <AuthProvider>
-          <LanguagePreferenceProvider>
-            <ThemeProvider>
-              <ProfileProvider>
+        {/* Profile outside Auth, matching `App.tsx`: the auth store mirrors the
+            account's display name into the device-local store. */}
+        <ProfileProvider>
+          <AuthProvider>
+            <LanguagePreferenceProvider>
+              <ThemeProvider>
                 <Routes>
                   <Route path="/login" element={<p>Sign in page</p>} />
                   <Route
@@ -56,10 +58,10 @@ function renderAt(path: string) {
                     }
                   />
                 </Routes>
-              </ProfileProvider>
-            </ThemeProvider>
-          </LanguagePreferenceProvider>
-        </AuthProvider>
+              </ThemeProvider>
+            </LanguagePreferenceProvider>
+          </AuthProvider>
+        </ProfileProvider>
       </Tooltip.Provider>
     </MemoryRouter>,
   )
